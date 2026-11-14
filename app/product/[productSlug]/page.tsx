@@ -1,141 +1,101 @@
 import {
-  StockAvailabillity,
-  UrgencyText,
-
+  Breadcrumb,
+  ProductGallery,
   ProductTabs,
   SingleProductDynamicFields,
-  
 } from "@/components";
-import apiClient from "@/lib/api";
-import Image from "next/image";
+import { productService } from "@/services/apiService";
 import { notFound } from "next/navigation";
 import React from "react";
-import { FaSquareFacebook } from "react-icons/fa6";
-import { FaSquareXTwitter } from "react-icons/fa6";
-import { FaSquarePinterest } from "react-icons/fa6";
+import { FaSquareFacebook, FaSquareXTwitter, FaSquarePinterest, FaShieldHalved, FaTruckFast } from "react-icons/fa6";
 import { sanitize } from "@/lib/sanitize";
-
-interface ImageItem {
-  imageID: string;
-  productID: string;
-  image: string;
-}
+import { Product } from "@/types/product";
 
 interface SingleProductPageProps {
-  params: Promise<{  productSlug: string, id: string }>;
+  params: Promise<{ productSlug: string; id?: string }>;
 }
 
 const SingleProductPage = async ({ params }: SingleProductPageProps) => {
-  const paramsAwaited = await params;
-  // sending API request for a single product with a given product slug
-  const data = await apiClient.get(
-    `/api/slugs/${paramsAwaited?.productSlug}`
-  );
-  const product = await data.json();
+  const { productSlug } = await params;
 
-  // sending API request for more than 1 product image if it exists
-  const imagesData = await apiClient.get(
-    `/api/images/${paramsAwaited?.id}`
-  );
-  const images = await imagesData.json();
-
-  if (!product || product.error) {
+  let product: Product | null = null;
+  try {
+    product = await productService.getBySlug(productSlug);
+  } catch (err) {
     notFound();
   }
 
+  if (!product || !product.id) {
+    notFound();
+  }
+
+  const images = product.images || [];
+
   return (
-    <div className="bg-white">
-      <div className="max-w-screen-2xl mx-auto">
-        <div className="flex justify-center gap-x-16 pt-10 max-lg:flex-col items-center gap-y-5 px-5">
-          <div>
-            <Image
-              src={product?.mainImage ? `/${product?.mainImage}` : "/product_placeholder.jpg"}
-              width={500}
-              height={500}
-              alt="main image"
-              className="w-auto h-auto"
-            />
-            <div className="flex justify-around mt-5 flex-wrap gap-y-1 max-[500px]:justify-center max-[500px]:gap-x-1">
-              {images?.map((imageItem: ImageItem, key: number) => (
-                <Image
-                  key={imageItem.imageID + key}
-                  src={`/${imageItem.image}`}
-                  width={100}
-                  height={100}
-                  alt="laptop image"
-                  className="w-auto h-auto"
-                />
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-y-7 text-black max-[500px]:text-center">
-        
-            <h1 className="text-3xl">{sanitize(product?.title)}</h1>
-            <p className="text-xl font-semibold">${product?.price}</p>
-            <StockAvailabillity stock={94} inStock={product?.inStock} />
-            <SingleProductDynamicFields product={product} />
-            <div className="flex flex-col gap-y-2 max-[500px]:items-center">
-             
-              <p className="text-lg">
-                SKU: <span className="ml-1">abccd-18</span>
-              </p>
-              <div className="text-lg flex gap-x-2">
-                <span>Share:</span>
-                <div className="flex items-center gap-x-1 text-2xl">
-                  <FaSquareFacebook />
-                  <FaSquareXTwitter />
-                  <FaSquarePinterest />
+    <div className="bg-[#FAF9F6] min-h-screen py-8">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-12">
+        <Breadcrumb currentPage={product.title} />
+
+        <div className="mt-4 bg-white rounded-3xl border border-[#E7E5E4] p-6 sm:p-10 shadow-sm">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
+            {/* CỘT TRÁI: GALLERY 3 ẢNH & AR/3D */}
+            <div className="lg:col-span-6 flex flex-col items-center w-full">
+              <ProductGallery
+                mainImage={product.mainImage}
+                images={images}
+                title={sanitize(product.title)}
+                arEnabled={product.arEnabled}
+              />
+
+              {/* Cam kết nhanh bên dưới ảnh */}
+              <div className="mt-6 w-full grid grid-cols-2 gap-3 text-xs text-gray-600">
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-[#FAF9F6] border border-gray-100">
+                  <FaTruckFast className="text-[#E06D53] text-sm flex-shrink-0" />
+                  <span>Freeship đơn từ 300K</span>
+                </div>
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-[#FAF9F6] border border-gray-100">
+                  <FaShieldHalved className="text-[#E06D53] text-sm flex-shrink-0" />
+                  <span>Đổi trả 7 ngày</span>
                 </div>
               </div>
-              <div className="flex gap-x-2">
-                <Image
-                  src="/visa.svg"
-                  width={50}
-                  height={50}
-                  alt="visa icon"
-                  className="w-auto h-auto"
-                />
-                <Image
-                  src="/mastercard.svg"
-                  width={50}
-                  height={50}
-                  alt="mastercard icon"
-                  className="h-auto w-auto"
-                />
-                <Image
-                  src="/ae.svg"
-                  width={50}
-                  height={50}
-                  alt="americal express icon"
-                  className="h-auto w-auto"
-                />
-                <Image
-                  src="/paypal.svg"
-                  width={50}
-                  height={50}
-                  alt="paypal icon"
-                  className="w-auto h-auto"
-                />
-                <Image
-                  src="/dinersclub.svg"
-                  width={50}
-                  height={50}
-                  alt="diners club icon"
-                  className="h-auto w-auto"
-                />
-                <Image
-                  src="/discover.svg"
-                  width={50}
-                  height={50}
-                  alt="discover icon"
-                  className="h-auto w-auto"
-                />
+            </div>
+
+            {/* CỘT PHẢI: THÔNG TIN CHI TIẾT & BỘ CHỌN BIẾN THỂ / TÙY BIẾN */}
+            <div className="lg:col-span-6 flex flex-col gap-y-4">
+              {product.category?.name && (
+                <span className="inline-block w-fit text-[11px] font-bold text-[#E06D53] bg-[#FDF2EE] border border-[#E06D53]/20 px-3 py-1 rounded-full uppercase tracking-wider">
+                  {product.category.name}
+                </span>
+              )}
+
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1E2229] leading-tight tracking-tight">
+                {sanitize(product.title)}
+              </h1>
+
+              {/* Component tương tác chính: Chọn Size, Khắc tên, Preview, Số lượng, Thêm giỏ / Mua ngay */}
+              <SingleProductDynamicFields product={product} />
+
+              {/* Thông tin bổ sung */}
+              <div className="mt-4 pt-5 border-t border-gray-100 flex flex-col gap-y-3 text-xs text-gray-500">
+                <div className="flex items-center gap-x-3">
+                  <span className="font-medium text-gray-700">Chia sẻ sản phẩm:</span>
+                  <div className="flex items-center gap-x-2 text-xl text-gray-400">
+                    <FaSquareFacebook className="hover:text-blue-600 transition-colors cursor-pointer" />
+                    <FaSquareXTwitter className="hover:text-black transition-colors cursor-pointer" />
+                    <FaSquarePinterest className="hover:text-rose-600 transition-colors cursor-pointer" />
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  Lưu ý: Do sản phẩm in 3D và khắc tên theo đơn đặt hàng, thời gian chuẩn bị hàng từ 1 - 2 ngày làm việc trước khi giao cho đơn vị vận chuyển.
+                </p>
               </div>
             </div>
           </div>
-        </div>
-        <div className="py-16">
-          <ProductTabs product={product} />
+
+          {/* Tab mô tả chi tiết sản phẩm */}
+          <div className="mt-14 pt-10 border-t border-gray-100">
+            <ProductTabs product={product} />
+          </div>
         </div>
       </div>
     </div>

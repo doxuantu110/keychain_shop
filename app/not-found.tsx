@@ -1,26 +1,36 @@
-import Link from 'next/link'
- 
+import Link from "next/link";
+import { FaCube, FaArrowLeft } from "react-icons/fa6";
+
 export default function NotFound() {
   return (
-    <>
-      <main className="grid min-h-full place-items-center bg-white px-6 py-24 sm:py-32 lg:px-8">
-        <div className="text-center">
-          <p className="text-lg font-semibold bg-blue-500  text-white border border-1 border-black py-2 rounded-full w-16 mx-auto">404</p>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-black sm:text-5xl">Page not found</h1>
-          <p className="mt-6 text-base leading-7 text-black">Sorry, we couldn’t find the page you’re looking for.</p>
-          <div className="mt-10 flex items-center justify-center gap-x-6 max-[350px]:flex-col max-[350px]:gap-y-5">
-            <Link
-              href="/"
-              className="rounded-md bg-blue-500 border border-1 border-black px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:text-blue-500 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              Go back home
-            </Link>
-            <Link href="#" className="text-sm font-semibold text-black hover:underline hover:underline-offset-4">
-              Contact support <span aria-hidden="true">&rarr;</span>
-            </Link>
-          </div>
+    <main className="min-h-[70vh] flex items-center justify-center bg-[#FAF9F6] px-6 py-24">
+      <div className="bg-white p-8 sm:p-12 rounded-3xl border border-[#E7E5E4] shadow-sm max-w-lg w-full text-center">
+        <span className="w-16 h-16 rounded-2xl bg-[#FDF2EE] text-[#E06D53] flex items-center justify-center text-2xl font-black mx-auto mb-4">
+          404
+        </span>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1E2229] tracking-tight">
+          Không tìm thấy trang
+        </h1>
+        <p className="mt-3 text-xs sm:text-sm text-gray-500 leading-relaxed">
+          Rất tiếc, trang bạn đang tìm kiếm không tồn tại hoặc đã được chuyển sang địa chỉ khác.
+        </p>
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link
+            href="/"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#1E2229] text-white text-xs sm:text-sm font-semibold hover:bg-[#2D323C] transition-all shadow-sm"
+          >
+            <FaArrowLeft className="text-xs" />
+            <span>Về trang chủ</span>
+          </Link>
+          <Link
+            href="/shop"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-gray-200 bg-[#FAF9F6] text-gray-700 text-xs sm:text-sm font-semibold hover:bg-white transition-all"
+          >
+            <FaCube className="text-[#E06D53]" />
+            <span>Xem sản phẩm in 3D</span>
+          </Link>
         </div>
-      </main>
-    </>
-  )
+      </div>
+    </main>
+  );
 }

@@ -1,6 +1,5 @@
 // Server-side validation utilities for payment and order processing
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require('./db');
 
 // Validation error class
 class ValidationError extends Error {
@@ -302,7 +301,15 @@ const orderValidation = {
 
   // Validate order status
   validateStatus: (status) => {
-    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = [
+      'pending', 
+      'pending_payment', 
+      'confirmed', 
+      'processing', 
+      'shipped', 
+      'delivered', 
+      'cancelled'
+    ];
     
     if (!status || typeof status !== 'string') {
       throw new ValidationError('Order status is required', 'status');
@@ -313,13 +320,99 @@ const orderValidation = {
     }
 
     return status.toLowerCase();
+  },
+
+  // Validate custom QR Code URL (Phase 3.6: SSRF & XSS Protection)
+  validateQrUrl: (url) => {
+    if (!url || typeof url !== 'string') return null;
+    const trimmed = url.trim();
+    if (trimmed.length === 0) return null;
+    if (trimmed.length > 500) {
+      throw new ValidationError('Mã QR URL không được vượt quá 500 ký tự', 'customQrUrl');
+    }
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new ValidationError('Mã QR URL phải bắt đầu bằng http:// hoặc https://', 'customQrUrl');
+      }
+      return trimmed;
+    } catch (e) {
+      if (e instanceof ValidationError) throw e;
+      throw new ValidationError('Định dạng mã QR URL không hợp lệ (phải bắt đầu bằng http:// hoặc https://)', 'customQrUrl');
+    }
   }
 };
 
-// Comprehensive order validation - FIXED VERSION
+// Shipping fee calculation service - Controlled 100% by backend
+const calculateShippingFee = (subtotal) => {
+  const numericSubtotal = Math.max(0, parseInt(subtotal, 10) || 0);
+  // Free shipping policy for orders >= 300,000 VND
+  if (numericSubtotal >= 300000) {
+    return 0;
+  }
+  // Standard shipping fee for orders under 300,000 VND
+  return 30000;
+};
+
+// Validate order items array
+const validateOrderItems = (items) => {
+  if (!Array.isArray(items)) {
+    throw new ValidationError('Items must be an array', 'items');
+  }
+  if (items.length === 0) {
+    throw new ValidationError('Items array cannot be empty', 'items');
+  }
+
+  return items.map((item, index) => {
+    if (!item || typeof item !== 'object') {
+      throw new ValidationError(`Item at index ${index} must be an object`, `items[${index}]`);
+    }
+
+    if (!item.productId || typeof item.productId !== 'string' || item.productId.trim().length === 0) {
+      throw new ValidationError(`Item at index ${index} requires a valid productId`, `items[${index}].productId`);
+    }
+
+    const rawQty = item.quantity;
+    if (rawQty === null || rawQty === undefined || rawQty === '') {
+      throw new ValidationError(`Item at index ${index} requires a quantity`, `items[${index}].quantity`);
+    }
+
+    const quantity = parseInt(rawQty, 10);
+    if (isNaN(quantity) || quantity <= 0 || String(rawQty).includes('.')) {
+      throw new ValidationError(`Item at index ${index} requires a positive integer quantity`, `items[${index}].quantity`);
+    }
+
+    return {
+      productId: item.productId.trim(),
+      variantId: item.variantId && typeof item.variantId === 'string' && item.variantId.trim().length > 0 
+        ? item.variantId.trim() 
+        : null,
+      quantity,
+      customText: item.customText !== undefined && item.customText !== null
+        ? String(item.customText).trim()
+        : null,
+      customFont: item.customFont && typeof item.customFont === 'string' 
+        ? item.customFont.trim().substring(0, 100) 
+        : null,
+      customQrUrl: item.customQrUrl 
+        ? orderValidation.validateQrUrl(item.customQrUrl) 
+        : null,
+    };
+  });
+};
+
+// Comprehensive order validation - UPDATED for Vietnamese E-Commerce and Personalization
 const validateOrderData = (orderData) => {
   const errors = [];
   const validatedData = {};
+
+  if (!orderData || typeof orderData !== 'object') {
+    return {
+      isValid: false,
+      errors: [{ field: 'body', message: 'Request body must be an object' }],
+      validatedData
+    };
+  }
 
   // Helper function to safely validate a field
   const safeValidate = (validationFn, value, fieldName) => {
@@ -342,23 +435,82 @@ const validateOrderData = (orderData) => {
     }
   };
 
-  // Validate all required fields - ALL will be checked regardless of previous errors
-  validatedData.name = safeValidate(orderValidation.validateName, orderData.name, 'name');
-  validatedData.lastname = safeValidate(orderValidation.validateName, orderData.lastname, 'lastname');
+  // Name handling: Support fullName, name, and lastname
+  let name = orderData.name;
+  let lastname = orderData.lastname;
+  let fullName = orderData.fullName;
+
+  if ((!name || !lastname) && fullName && typeof fullName === 'string' && fullName.trim().length > 0) {
+    const trimmedFull = fullName.trim();
+    const parts = trimmedFull.split(/\s+/);
+    if (parts.length === 1) {
+      name = parts[0];
+      lastname = parts[0];
+    } else {
+      name = parts[parts.length - 1];
+      lastname = parts.slice(0, -1).join(' ');
+    }
+  }
+
+  if (!fullName && name) {
+    fullName = lastname ? `${lastname} ${name}`.trim() : name.trim();
+  }
+
+  validatedData.name = safeValidate(orderValidation.validateName, name, 'name');
+  validatedData.lastname = safeValidate(orderValidation.validateName, lastname || name, 'lastname');
+  validatedData.fullName = fullName || (validatedData.name && validatedData.lastname ? `${validatedData.lastname} ${validatedData.name}`.trim() : '');
+  
+  // Required contact fields
   validatedData.email = safeValidate(orderValidation.validateEmail, orderData.email, 'email');
   validatedData.phone = safeValidate(orderValidation.validatePhone, orderData.phone, 'phone');
-  validatedData.company = safeValidate(orderValidation.validateAddress, orderData.company, 'company');
-  validatedData.adress = safeValidate(orderValidation.validateAddress, orderData.adress, 'address');
-  validatedData.apartment = safeValidate(orderValidation.validateAddress, orderData.apartment, 'apartment');
-  validatedData.city = safeValidate(orderValidation.validateAddress, orderData.city, 'city');
-  validatedData.country = safeValidate(orderValidation.validateAddress, orderData.country, 'country');
-  validatedData.postalCode = safeValidate(orderValidation.validatePostalCode, orderData.postalCode, 'postalCode');
-  validatedData.total = safeValidate(orderValidation.validateTotal, orderData.total, 'total');
+
+  // Vietnamese Address fields (Optional / Standardized)
+  validatedData.province = orderData.province ? String(orderData.province).trim() : null;
+  validatedData.district = orderData.district ? String(orderData.district).trim() : null;
+  validatedData.ward = orderData.ward ? String(orderData.ward).trim() : null;
+  validatedData.addressDetail = orderData.addressDetail ? String(orderData.addressDetail).trim() : null;
+
+  // Legacy Address fields: Made optional with reasonable defaults
+  validatedData.company = orderData.company ? String(orderData.company).trim() : "";
+  validatedData.apartment = orderData.apartment ? String(orderData.apartment).trim() : "";
+  validatedData.postalCode = orderData.postalCode ? String(orderData.postalCode).trim() : "";
+  validatedData.city = orderData.city ? String(orderData.city).trim() : (validatedData.province || "");
+  validatedData.country = orderData.country ? String(orderData.country).trim() : "Vietnam";
+
+  const rawAddress = orderData.adress || 
+    [validatedData.addressDetail, validatedData.ward, validatedData.district, validatedData.province].filter(Boolean).join(", ");
+  
+  validatedData.adress = rawAddress ? String(rawAddress).trim() : "";
+  if (validatedData.adress.length > 255) {
+    errors.push({ field: 'address', message: 'Address must be less than 255 characters' });
+  }
+
+  // Payment method and status
+  const validPaymentMethods = ['COD', 'SEPAY', 'SEPAY_QR', 'VNPAY', 'PAYOS', 'UNVERIFIED'];
+  const pMethod = orderData.paymentMethod ? String(orderData.paymentMethod).toUpperCase().trim() : 'COD';
+  validatedData.paymentMethod = validPaymentMethods.includes(pMethod) ? pMethod : 'COD';
+  validatedData.paymentStatus = orderData.paymentStatus ? String(orderData.paymentStatus).toUpperCase().trim() : 'PENDING';
+
+  // Audit 5: Bắt buộc items phải là mảng và items.length >= 1 cho checkout mới
+  if (!orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
+    errors.push({ field: 'items', message: 'Đơn hàng phải có ít nhất một sản phẩm (items không được rỗng)' });
+  } else {
+    try {
+      validatedData.items = validateOrderItems(orderData.items);
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        errors.push({ field: err.field, message: err.message });
+      } else {
+        errors.push({ field: 'items', message: err.message });
+      }
+    }
+  }
+
   validatedData.status = safeValidate(orderValidation.validateStatus, orderData.status || 'pending', 'status');
   
-  // Optional fields
+  // Optional order notice
   validatedData.orderNotice = orderData.orderNotice ? 
-    orderData.orderNotice.trim().substring(0, 500) : ''; // Limit to 500 characters
+    String(orderData.orderNotice).trim().substring(0, 500) : '';
 
   return {
     isValid: errors.length === 0,
@@ -439,5 +591,7 @@ module.exports = {
   paymentValidation,
   orderValidation,
   validateOrderData,
-  validatePaymentData
+  validateOrderItems,
+  validatePaymentData,
+  calculateShippingFee
 };

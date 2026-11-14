@@ -23,10 +23,14 @@ const AddToCartSingleProductBtn = ({ product, quantityCount } : SingleProductBtn
   const handleAddToCart = () => {
     addToCart({
       id: product?.id.toString(),
+      productId: product?.id.toString(),
+      variantId: "default",
+      productTitle: product?.title || "",
+      productSlug: product?.slug || "",
       title: product?.title,
       price: product?.price,
       image: product?.mainImage,
-      amount: quantityCount
+      amount: quantityCount,
     });
     calculateTotals();
     toast.success("Product added to the cart");

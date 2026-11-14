@@ -15,7 +15,13 @@
     "migrate:backup": "node scripts/migration-validator.js backup",
     "migrate:safe": "node scripts/migration-validator.js safe-migrate",
     "db:backup": "node scripts/backup-database.js",
-    "db:restore": "node scripts/restore-database.js"
+    "db:restore": "node scripts/restore-database.js",
+    "schema:sync": "node scripts/sync-schema.js",
+    "migrate:phase1": "node scripts/data-migration-phase1.js",
+    "test:phase2": "node scripts/test-phase2-apis.js",
+    "test:phase3-6": "node scripts/test-phase2-apis.js",
+    "test:sepay": "node scripts/test-sepay-and-guest.js",
+    "verify:syntax": "node scripts/verify-syntax.js"
   },
   "keywords": [],
   "author": "",
@@ -32,8 +38,10 @@
     "morgan": "^1.10.1",
     "mysql": "^2.18.1",
     "nanoid": "^5.0.6",
-    "prisma": "6.16.3",
     "node-fetch": "^3.3.2",
+    "nodemailer": "^10.5.0",
+    "prisma": "6.16.3",
+    "sepay-pg-node": "^1.0.0",
     "winston": "^3.8.2"
   }
 }

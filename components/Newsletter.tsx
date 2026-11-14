@@ -1,55 +1,67 @@
-// *********************
-// Role of the component: Signup to the newsletter component by leaving email adress
-// Name of the component: Newsletter.tsx
-// Developer: Aleksandar Kuzmanovic
-// Version: 1.0
-// Component call: <Newsletter />
-// Input parameters: no input parameters
-// Output: Section with the email input and some text
-// *********************
+"use client";
 
-import React from 'react'
+import React, { useState } from "react";
+import toast from "react-hot-toast";
+import { FaPaperPlane } from "react-icons/fa6";
 
 const Newsletter = () => {
-  return (
-    <div className="bg-white py-5 sm:py-24 lg:py-20">
-    <div className="mx-auto grid justify-items-center max-w-screen-2xl grid-cols-1 gap-10 px-6 lg:grid-cols-12 lg:gap-8 lg:px-8">
-      <div className="max-w-xl text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl lg:col-span-7">
-        <h2 className="inline sm:block lg:inline xl:block max-sm:text-xl">Want product news and updates?</h2>{' '}
-        <p className="inline sm:block lg:inline xl:block max-sm:text-xl">Sign up for our newsletter.</p>
-      </div>
-      <form className="w-full max-w-md lg:col-span-5 lg:pt-2">
-        <div className="flex gap-x-4">
-          <label htmlFor="email-address" className="sr-only">
-            Email address
-          </label>
-          <input
-            id="email-address"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            className="min-w-0 flex-auto rounded-md border-0 px-3.5 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-            placeholder="Enter your email"
-          />
-          <button
-            type="submit"
-            className="flex-none rounded-md bg-custom-yellow px-3.5 py-2.5 text-sm font-semibold text-black shadow-sm hover:bg-black hover:text-custom-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-          >
-            Subscribe
-          </button>
-        </div>
-        <p className="mt-4 text-sm leading-6 text-gray-900">
-          We care about your data. Read our{' '}
-          <a href="#" className="font-semibold hover:text-custom-yellow text-black">
-            privacy&nbsp;policy
-          </a>
-          .
-        </p>
-      </form>
-    </div>
-  </div>
-  )
-}
+  const [email, setEmail] = useState("");
 
-export default Newsletter
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email.trim()) {
+      toast.success("Cảm ơn bạn đã đăng ký nhận tin từ Craft3D!");
+      setEmail("");
+    }
+  };
+
+  return (
+    <section className="bg-[#FAF9F6] py-16 sm:py-20">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-12">
+        <div className="bg-[#1E2229] rounded-3xl p-8 sm:p-12 lg:p-16 text-white relative overflow-hidden shadow-xl">
+          {/* Họa tiết trang trí */}
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-[#E06D53]/10 blur-2xl pointer-events-none" />
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            <div className="lg:col-span-7">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#E06D53] bg-white/10 px-3 py-1 rounded-full inline-block mb-3">
+                Bản Tin Thiết Kế
+              </span>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight">
+                Nhận Ý Tưởng Thiết Kế & Ưu Đãi Mới Nhất
+              </h2>
+              <p className="mt-2 text-sm sm:text-base text-gray-300 max-w-xl leading-relaxed">
+                Đăng ký email để cập nhật các mẫu móc khóa in 3D mới nhất, mẹo cá nhân hóa độc đáo và mã voucher ưu đãi sớm nhất từ xưởng Craft3D.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="lg:col-span-5 w-full">
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Nhập địa chỉ email của bạn..."
+                  className="min-w-0 flex-auto rounded-xl border border-gray-700 bg-[#2D323C] px-4 py-3 text-sm text-white placeholder-gray-400 outline-none focus:border-[#E06D53] focus:ring-2 focus:ring-[#E06D53]/20"
+                />
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#E06D53] px-6 py-3 text-sm font-semibold text-white hover:bg-[#C85A42] transition-colors shadow-sm flex-shrink-0"
+                >
+                  <span>Đăng ký</span>
+                  <FaPaperPlane className="text-xs" />
+                </button>
+              </div>
+              <p className="mt-3 text-[11px] text-gray-400">
+                Craft3D cam kết bảo mật thông tin và không gửi thư rác.
+              </p>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default Newsletter;

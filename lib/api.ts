@@ -2,38 +2,68 @@ import config from './config';
 
 export const apiClient = {
   baseUrl: config.apiBaseUrl,
-  
+
   async request(endpoint: string, options: RequestInit = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
-    
+    // Security: In browser, route admin calls via Next.js server proxy (/api/admin/...)
+    // so authentication relies strictly on httpOnly NextAuth session cookie (Zero Client Secret Exposure)
+    let url: string;
+    const method = (options.method || 'GET').toUpperCase();
+    const isAdminMutatingEndpoint =
+      ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
+      (endpoint.startsWith('/api/products') ||
+        endpoint.startsWith('/api/categories') ||
+        endpoint.startsWith('/api/merchants') ||
+        endpoint.startsWith('/api/users') ||
+        endpoint.startsWith('/api/bulk-upload'));
+
+    if (typeof window !== 'undefined') {
+      if (endpoint.startsWith('/api/admin')) {
+        url = endpoint;
+      } else if (isAdminMutatingEndpoint) {
+        url = `/api/admin${endpoint.replace('/api', '')}`;
+      } else {
+        url = `${this.baseUrl}${endpoint}`;
+      }
+    } else {
+      url = `${this.baseUrl}${endpoint}`;
+    }
+
     const defaultOptions: RequestInit = {
+      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
     };
-    
+
     return fetch(url, { ...defaultOptions, ...options });
   },
-  
+
   // Convenience methods
-  get: (endpoint: string, options?: RequestInit) => 
+  get: (endpoint: string, options?: RequestInit) =>
     apiClient.request(endpoint, { ...options, method: 'GET' }),
-    
+
   post: (endpoint: string, data?: any, options?: RequestInit) =>
     apiClient.request(endpoint, {
       ...options,
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     }),
-    
+
   put: (endpoint: string, data?: any, options?: RequestInit) =>
     apiClient.request(endpoint, {
       ...options,
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
     }),
-    
+
+  patch: (endpoint: string, data?: any, options?: RequestInit) =>
+    apiClient.request(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+
   delete: (endpoint: string, options?: RequestInit) =>
     apiClient.request(endpoint, { ...options, method: 'DELETE' }),
 };

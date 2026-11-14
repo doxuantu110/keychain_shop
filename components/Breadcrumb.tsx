@@ -1,35 +1,39 @@
-// *********************
-// Role of the component: Component that displays current page location in the application 
-// Name of the component: Breadcrumb.tsx
-// Developer: Aleksandar Kuzmanovic
-// Version: 1.0
-// Component call: <Breadcrumb />
-// Input parameters: No input parameters
-// Output: Page location in the application
-// *********************
+"use client";
 
 import Link from "next/link";
 import React from "react";
-import { FaHouse } from "react-icons/fa6";
+import { FaHouse, FaAngleRight } from "react-icons/fa6";
 
-const Breadcrumb = () => {
+interface BreadcrumbProps {
+  currentPage?: string;
+}
+
+const Breadcrumb = ({ currentPage = "Tất cả sản phẩm" }: BreadcrumbProps) => {
   return (
-    <div className="text-lg breadcrumbs pb-10 py-5 max-sm:text-base">
-      <ul>
-        <li>
-          <Link href="/">
-            <FaHouse className="mr-2" />
-            Home
+    <nav aria-label="Breadcrumb" className="py-5 text-xs sm:text-sm text-gray-500">
+      <ol className="flex items-center gap-2">
+        <li className="flex items-center">
+          <Link href="/" className="flex items-center gap-1.5 hover:text-[#E06D53] transition-colors">
+            <FaHouse className="text-xs" />
+            <span>Trang chủ</span>
           </Link>
         </li>
-        <li>
-          <Link href="/shop">Shop</Link>
+        <li className="flex items-center text-gray-400">
+          <FaAngleRight className="text-[10px]" />
         </li>
-        <li>
-          <Link href="/shop">All products</Link>
+        <li className="flex items-center">
+          <Link href="/shop" className="hover:text-[#E06D53] transition-colors">
+            Cửa hàng
+          </Link>
         </li>
-      </ul>
-    </div>
+        <li className="flex items-center text-gray-400">
+          <FaAngleRight className="text-[10px]" />
+        </li>
+        <li className="font-semibold text-[#1E2229] truncate max-w-[200px] sm:max-w-none">
+          {currentPage}
+        </li>
+      </ol>
+    </nav>
   );
 };
 

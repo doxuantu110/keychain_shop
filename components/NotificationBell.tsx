@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import { FaBell } from 'react-icons/fa6';
-import { useUnreadCount } from '@/hooks/useNotifications';
-import { useSession } from 'next-auth/react';
+import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { FaBell } from "react-icons/fa6";
+import { useUnreadCount } from "@/hooks/useNotifications";
+import { useSession } from "next-auth/react";
 
 interface NotificationBellProps {
   className?: string;
@@ -16,7 +16,6 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = "" }) =
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -24,11 +23,10 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = "" }) =
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Don't show notification bell if user is not logged in
   if (!session?.user) {
     return null;
   }
@@ -38,77 +36,62 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = "" }) =
       {/* Notification Bell Button */}
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-        aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
+        className="relative p-2 text-gray-700 hover:text-[#E06D53] hover:bg-gray-100/60 rounded-full transition-colors focus:outline-none"
+        aria-label={`Thông báo ${unreadCount > 0 ? `(${unreadCount} chưa đọc)` : ""}`}
       >
-        <FaBell className="w-6 h-6" />
+        <FaBell className="w-5 h-5" />
         
-        {/* Unread Count Badge */}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
-            {unreadCount > 99 ? '99+' : unreadCount}
+          <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-[#E06D53] rounded-full animate-pulse shadow-sm">
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
 
       {/* Dropdown Menu */}
       {isDropdownOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-[#E7E5E4] rounded-2xl shadow-xl z-50 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <h3 className="text-sm font-bold text-[#1E2229]">Thông báo của bạn</h3>
             {unreadCount > 0 && (
-              <span className="text-sm text-gray-500">
-                {unreadCount} unread
+              <span className="text-[11px] font-medium bg-[#FDF2EE] text-[#E06D53] px-2 py-0.5 rounded-full">
+                {unreadCount} chưa đọc
               </span>
             )}
           </div>
 
           {/* Quick Actions */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex space-x-2">
-              <Link
-                href="/notifications"
-                onClick={() => setIsDropdownOpen(false)}
-                className="flex-1 px-3 py-2 text-sm font-medium text-center text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
-              >
-                View All
-              </Link>
-              
-              {unreadCount > 0 && (
-                <button
-                  className="flex-1 px-3 py-2 text-sm font-medium text-center text-gray-600 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
-                  onClick={() => {
-                    // TODO: Implement mark all as read functionality
-                    setIsDropdownOpen(false);
-                  }}
-                >
-                  Mark All Read
-                </button>
-              )}
-            </div>
+          <div className="p-3 border-b border-gray-100 bg-[#FAF9F6] flex gap-2">
+            <Link
+              href="/notifications"
+              onClick={() => setIsDropdownOpen(false)}
+              className="flex-1 py-1.5 px-3 text-xs font-semibold text-center text-[#1E2229] bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shadow-xs"
+            >
+              Xem tất cả
+            </Link>
           </div>
 
           {/* Notification Preview */}
           <div className="max-h-64 overflow-y-auto">
             {unreadCount === 0 ? (
               <div className="p-6 text-center">
-                <FaBell className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500 text-sm">No new notifications</p>
-                <p className="text-gray-400 text-xs mt-1">You're all caught up!</p>
+                <FaBell className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p className="text-gray-600 text-xs font-medium">Không có thông báo mới</p>
+                <p className="text-gray-400 text-[11px] mt-0.5">Bạn đã xem hết các thông báo gần đây.</p>
               </div>
             ) : (
               <div className="p-4 space-y-3">
                 <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-2">
-                    You have {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+                  <p className="text-xs text-gray-600 mb-2">
+                    Bạn có {unreadCount} thông báo đơn hàng & chế tác mới
                   </p>
                   <Link
                     href="/notifications"
                     onClick={() => setIsDropdownOpen(false)}
-                    className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+                    className="inline-flex items-center px-3 py-1 text-xs font-semibold text-[#E06D53] bg-[#FDF2EE] border border-[#E06D53]/20 rounded-full hover:bg-[#FCE7E0] transition-colors"
                   >
-                    View in Notification Center →
+                    Xem chi tiết →
                   </Link>
                 </div>
               </div>
@@ -116,13 +99,13 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ className = "" }) =
           </div>
 
           {/* Footer */}
-          <div className="p-3 bg-gray-50 border-t border-gray-200">
+          <div className="p-2.5 bg-[#FAF9F6] border-t border-gray-100 text-center">
             <Link
               href="/notifications"
               onClick={() => setIsDropdownOpen(false)}
-              className="block w-full text-center text-sm text-gray-600 hover:text-blue-600 transition-colors"
+              className="text-xs font-semibold text-gray-600 hover:text-[#E06D53] transition-colors"
             >
-              Go to Notification Center
+              Đến Trung Tâm Thông Báo
             </Link>
           </div>
         </div>

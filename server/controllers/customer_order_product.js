@@ -1,9 +1,16 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require("../utills/db");
 const { asyncHandler, AppError } = require("../utills/errorHandler");
 
 const createOrderProduct = asyncHandler(async (request, response) => {
-  const { customerOrderId, productId, quantity } = request.body;
+  const { 
+    customerOrderId, 
+    productId, 
+    variantId, 
+    quantity,
+    customText,
+    customFont,
+    customQrUrl
+  } = request.body;
   
   // Validate required fields
   if (!customerOrderId) {
@@ -12,7 +19,8 @@ const createOrderProduct = asyncHandler(async (request, response) => {
   if (!productId) {
     throw new AppError("Product ID is required", 400);
   }
-  if (!quantity || quantity <= 0) {
+  const qty = parseInt(quantity, 10);
+  if (!qty || qty <= 0) {
     throw new AppError("Valid quantity is required", 400);
   }
 
@@ -27,20 +35,73 @@ const createOrderProduct = asyncHandler(async (request, response) => {
 
   // Verify that the product exists
   const existingProduct = await prisma.product.findUnique({
-    where: { id: productId }
+    where: { id: productId },
+    include: {
+      variants: { where: { isActive: true } }
+    }
   });
 
   if (!existingProduct) {
     throw new AppError("Product not found", 404);
   }
 
-  // Create the order product
-  const orderProduct = await prisma.customer_order_product.create({
-    data: {
-      customerOrderId: customerOrderId,
-      productId: productId,
-      quantity: parseInt(quantity)
+  let variant = null;
+  if (variantId) {
+    variant = existingProduct.variants.find(v => v.id === variantId);
+    if (!variant) {
+      throw new AppError("Variant not found or inactive", 404);
     }
+  } else if (existingProduct.variants.length > 0) {
+    variant = existingProduct.variants.sort((a, b) => a.price - b.price)[0];
+  }
+
+  if (variant && !variant.allowPreorder && variant.stock < qty) {
+    throw new AppError(`Sản phẩm chỉ còn ${variant.stock} tồn kho`, 400);
+  }
+
+  // Atomic creation and stock deduction
+  const orderProduct = await prisma.$transaction(async (tx) => {
+    if (variant && !variant.allowPreorder) {
+      const updateResult = await tx.productVariant.updateMany({
+        where: { id: variant.id, stock: { gte: qty } },
+        data: { stock: { decrement: qty } }
+      });
+      if (updateResult.count === 0) {
+        throw new AppError("Sản phẩm đã hết hàng trong quá trình xử lý", 400);
+      }
+    }
+
+    const created = await tx.customer_order_product.create({
+      data: {
+        customerOrderId: customerOrderId,
+        productId: productId,
+        variantId: variant ? variant.id : null,
+        quantity: qty,
+        unitPrice: variant ? variant.price : existingProduct.price,
+        productTitle: existingProduct.title,
+        sizeLabel: variant ? variant.sizeLabel : null,
+        customText: customText || null,
+        customFont: customFont || null,
+        customQrUrl: customQrUrl || null,
+        isEstimatedSnapshot: false,
+        snapshotSource: "CHECKOUT",
+      }
+    });
+
+    // Sync product inStock
+    const remaining = await tx.productVariant.findFirst({
+      where: {
+        productId: productId,
+        isActive: true,
+        OR: [{ stock: { gt: 0 } }, { allowPreorder: true }]
+      }
+    });
+    await tx.product.update({
+      where: { id: productId },
+      data: { inStock: remaining ? 1 : 0 }
+    });
+
+    return created;
   });
 
   return response.status(201).json(orderProduct);

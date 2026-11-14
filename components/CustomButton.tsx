@@ -1,38 +1,25 @@
-// *********************
-// Role of the component: Custom button component
-// Name of the component: CustomButton.tsx
-// Developer: Aleksandar Kuzmanovic
-// Version: 1.0
-// Component call: <CustomButton paddingX={paddingX} paddingY={paddingY} text={text} buttonType={buttonType} customWidth={customWidth} textSize={textSize} />
-// Input parameters: CustomButtonProps interface
-// Output: custom button component
-// *********************
-
 import React from "react";
 
 interface CustomButtonProps {
-  paddingX: number;
-  paddingY: number;
+  paddingX?: number;
+  paddingY?: number;
   text: string;
-  buttonType: "submit" | "reset" | "button";
-  customWidth: string;
-  textSize: string;
+  buttonType?: "submit" | "reset" | "button";
+  customWidth?: string;
+  textSize?: string;
+  className?: string;
 }
 
 const CustomButton = ({
-  paddingX,
-  paddingY,
   text,
-  buttonType,
-  customWidth,
-  textSize
+  buttonType = "button",
+  customWidth = "full",
+  className = "",
 }: CustomButtonProps) => {
-
-
   return (
     <button
-      type={`${buttonType}`}
-      className={`${customWidth !== "no" && `w-${customWidth}`} uppercase bg-white px-${paddingX} py-${paddingY} text-${textSize} border border-black border-gray-300 font-bold text-blue-600 shadow-sm hover:bg-black hover:bg-gray-100 focus:outline-none focus:ring-2`}
+      type={buttonType}
+      className={`w-${customWidth} py-3 px-4 rounded-xl font-bold text-sm bg-[#1E2229] text-white hover:bg-[#E06D53] transition-all shadow-sm ${className}`}
     >
       {text}
     </button>

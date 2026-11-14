@@ -1,42 +1,38 @@
-// *********************
-// Role of the component: Search input element located in the header but it can be used anywhere in your application
-// Name of the component: SearchInput.tsx
-// Developer: Aleksandar Kuzmanovic
-// Version: 1.0
-// Component call: <SearchInput />
-// Input parameters: no input parameters
-// Output: form with search input and button
-// *********************
-
 "use client";
+
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { sanitize } from "@/lib/sanitize";
+import { FaMagnifyingGlass } from "react-icons/fa6";
 
 const SearchInput = () => {
   const [searchInput, setSearchInput] = useState<string>("");
   const router = useRouter();
 
-  // function for modifying URL for searching products
   const searchProducts = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Sanitize the search input before using it in URL
-    const sanitizedSearch = sanitize(searchInput);
-    router.push(`/search?search=${encodeURIComponent(sanitizedSearch)}`);
-    setSearchInput("");
+    const sanitizedSearch = sanitize(searchInput).trim();
+    if (sanitizedSearch) {
+      router.push(`/search?search=${encodeURIComponent(sanitizedSearch)}`);
+      setSearchInput("");
+    }
   };
 
   return (
-    <form className="flex w-full justify-center" onSubmit={searchProducts}>
+    <form className="relative flex w-full max-w-md items-center" onSubmit={searchProducts}>
       <input
         type="text"
         value={searchInput}
         onChange={(e) => setSearchInput(e.target.value)}
-        placeholder="Type here"
-        className="bg-gray-50 input input-bordered w-[70%] rounded-r-none outline-none focus:outline-none max-sm:w-full"
+        placeholder="Tìm kiếm móc khóa, bảng tên in 3D..."
+        className="w-full rounded-full border border-gray-200 bg-[#F5F3EF] py-2.5 pl-4 pr-11 text-sm text-[#18181B] placeholder-gray-400 outline-none transition-all focus:border-[#E06D53] focus:bg-white focus:ring-2 focus:ring-[#E06D53]/20"
       />
-      <button type="submit" className="btn bg-blue-500 text-white rounded-l-none rounded-r-xl hover:bg-blue-600">
-        Search
+      <button
+        type="submit"
+        className="absolute right-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#1E2229] text-white hover:bg-[#E06D53] transition-colors shadow-sm"
+        aria-label="Tìm kiếm"
+      >
+        <FaMagnifyingGlass className="text-xs" />
       </button>
     </form>
   );

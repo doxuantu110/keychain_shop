@@ -1,21 +1,41 @@
-const prisma = require("../utills/db"); // ✅ Use shared connection
+const prisma = require("../utills/db");
+const { asyncHandler, AppError } = require("../utills/errorHandler");
 
-async function getProductBySlug(request, response) {
+/**
+ * GET /api/slugs/:slug
+ * Lấy thông tin chi tiết sản phẩm theo slug, chỉ trả về khi sản phẩm đang hoạt động (isActive = true).
+ * Bao gồm category, active variants (sắp xếp giá tăng dần), và danh sách ảnh phụ.
+ */
+const getProductBySlug = asyncHandler(async (request, response) => {
   const { slug } = request.params;
-  const product = await prisma.product.findMany({
+
+  if (!slug) {
+    throw new AppError("Slug is required", 400);
+  }
+
+  const product = await prisma.product.findUnique({
     where: {
       slug: slug,
     },
     include: {
-      category: true
+      category: true,
+      variants: {
+        where: {
+          isActive: true,
+        },
+        orderBy: {
+          price: "asc",
+        },
+      },
+      images: true,
     },
   });
 
-  const foundProduct = product[0]; // Assuming there's only one product with that slug
-  if (!foundProduct) {
-    return response.status(404).json({ error: "Product not found" });
+  if (!product || !product.isActive) {
+    throw new AppError("Product not found", 404);
   }
-  return response.status(200).json(foundProduct);
-}
+
+  return response.status(200).json(product);
+});
 
 module.exports = { getProductBySlug };

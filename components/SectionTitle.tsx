@@ -1,22 +1,21 @@
-// *********************
-// Role of the component: Section title that can be used on any page
-// Name of the component: SectionTitle.tsx
-// Developer: Aleksandar Kuzmanovic
-// Version: 1.0
-// Component call: <SectionTitle />
-// Input parameters: {title: string; path: string}
-// Output: div containing h1 for page title and p for page location path 
-// *********************
+import React from "react";
 
-import React from 'react'
-
-const SectionTitle = ({title, path} : {title: string; path: string}) => {
+const SectionTitle = ({ title, path }: { title: string; path: string }) => {
   return (
-    <div className='h-[250px] border-b pt-16 border-white bg-blue-500 mb-2 max-sm:h-[200px] max-sm:pt-16'>
-        <h1 className='section-title-title text-7xl text-center mb-7 max-md:text-7xl max-sm:text-5xl text-white max-sm:mb-2'>{ title }</h1>
-        <p className='section-title-path text-xl text-center max-sm:text-xl text-white'>{ path }</p>
+    <div className="relative overflow-hidden bg-[#1E2229] py-10 sm:py-14 border-b border-[#2D323C] mb-6">
+      <div className="absolute top-0 right-0 -mr-20 -mt-20 w-60 h-60 rounded-full bg-[#E06D53]/10 blur-3xl pointer-events-none" />
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-12 text-center relative z-10">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
+          {title}
+        </h1>
+        {path && (
+          <p className="mt-2 text-xs sm:text-sm text-gray-400 font-medium">
+            {path}
+          </p>
+        )}
+      </div>
     </div>
-  )
-}
+  );
+};
 
-export default SectionTitle
+export default SectionTitle;

@@ -3,7 +3,7 @@ interface Product {
   slug: string;
   title: string;
   price: number;
-  rating: number;
+  rating?: number;
   description: string;
   mainImage: string;
   manufacturer: string;

@@ -12,7 +12,10 @@ const searchRouter = require("./routes/search");
 const mainImageRouter = require("./routes/mainImages");
 const userRouter = require("./routes/users");
 const orderRouter = require("./routes/customer_orders");
+const adminOrdersRouter = require("./routes/admin_orders");
+const paymentsRouter = require("./routes/payments");
 const slugRouter = require("./routes/slugs");
+const variantsRouter = require("./routes/variants");
 const orderProductRouter = require('./routes/customer_order_product');
 // const wishlistRouter = require('./routes/wishlist');
 const notificationsRouter = require('./routes/notifications');
@@ -36,15 +39,25 @@ const {
   userManagementLimiter,
   uploadLimiter,
   searchLimiter,
-  orderLimiter
+  orderLimiter,
+  lookupLimiter,
 } = require('./middleware/rateLimiter');
-
 
 const {
   handleServerError
 } = require('./utills/errorHandler');
 
 const app = express();
+
+// Security Headers Middleware (Audit 8: Defense in depth)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 
 // Trust proxy for accurate IP addresses
 app.set('trust proxy', 1);
@@ -88,8 +101,21 @@ const corsOptions = {
     const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
     return callback(new Error(msg), false);
   },
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  allowedHeaders: [
+    "Content-Type", 
+    "Authorization", 
+    "Idempotency-Key", 
+    "idempotency-key", 
+    "x-idempotency-key", 
+    "x-admin-key", 
+    "x-admin-token", 
+    "x-user-email", 
+    "x-user-id",
+    "x-secret-key",
+    "X-Secret-Key",
+    "x-sepay-signature"
+  ],
   credentials: true, // Allow cookies and authorization headers
 };
 
@@ -103,6 +129,7 @@ app.use(fileUpload());
 // Apply specific rate limiters to different route groups
 app.use("/api/users", userManagementLimiter);
 app.use("/api/search", searchLimiter);
+app.use("/api/orders/lookup", lookupLimiter);
 app.use("/api/orders", orderLimiter);
 app.use("/api/order-product", orderLimiter);
 app.use("/api/images", uploadLimiter);
@@ -125,8 +152,16 @@ app.use("/api/main-image", mainImageRouter);
 app.use("/api/users", userRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/orders", orderRouter);
+app.use("/api/admin/orders", adminOrdersRouter);
+app.use("/api/admin/products", productsRouter);
+app.use("/api/admin/categories", categoryRouter);
+app.use("/api/admin/merchants", merchantRouter);
+app.use("/api/admin/users", userRouter);
+app.use("/api/admin/bulk-upload", bulkUploadRouter);
+app.use("/api/payments", paymentsRouter);
 app.use('/api/order-product', orderProductRouter);
 app.use("/api/slugs", slugRouter);
+app.use("/api/variants", variantsRouter);
 // app.use("/api/wishlist", wishlistRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/merchants", merchantRouter); 
@@ -171,8 +206,12 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Rate limiting and request logging enabled for all endpoints');
-  console.log('Logs are being written to server/logs/ directory');
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log('Rate limiting and request logging enabled for all endpoints');
+    console.log('Logs are being written to server/logs/ directory');
+  });
+}
+
+module.exports = app;

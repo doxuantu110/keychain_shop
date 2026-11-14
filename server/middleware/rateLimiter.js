@@ -127,6 +127,24 @@ const orderLimiter = rateLimit({
   }
 });
 
+// Stricter rate limiter for order lookup (Audit 3: Anti-enumeration)
+const lookupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // Limit each IP to 30 order lookup requests per 15 minutes
+  message: {
+    error: 'Quá nhiều lần tra cứu đơn hàng từ IP này, vui lòng thử lại sau 15 phút.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Quá nhiều lần tra cứu đơn hàng từ IP này, vui lòng thử lại sau 15 phút.',
+      retryAfter: '15 minutes'
+    });
+  }
+});
+
 module.exports = {
   generalLimiter,
   authLimiter,
@@ -134,5 +152,6 @@ module.exports = {
   userManagementLimiter,
   uploadLimiter,
   searchLimiter,
-  orderLimiter
+  orderLimiter,
+  lookupLimiter,
 };

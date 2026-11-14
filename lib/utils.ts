@@ -1,109 +1,49 @@
 export const categoryMenuList = [
   {
     id: 1,
-    title: "Smart Phones",
-    src: "/smart phone icon.png",
-    href: "/shop/smart-phones"
-  },
-  {
-    id: 2,
-    title: "Tablets",
-    src: "/tablet icon.png",
-    href: "/shop/tablets"
-  },
-  {
-    id: 3,
-    title: "Mouses",
-    src: "/mouse icon.png",
-    href: "/shop/mouses"
-  },
-  {
-    id: 4,
-    title: "Cameras",
-    src: "/camera icon.png",
-    href: "/shop/cameras"
-  },
-  {
-    id: 5,
-    title: "Smart Watches",
-    src: "/smart watch.png",
-    href: "/shop/watches"
-  },
-  {
-    id: 6,
-    title: "Laptops",
-    src: "/laptop icon.png",
-    href: "/shop/laptops"
-  },
-  {
-    id: 7,
-    title: "PCs",
-    src: "/pc icon.png",
-    href: "/shop/computers"
-  },
-  {
-    id: 8,
-    title: "Printers",
-    src: "/printers icon.png",
-    href: "/shop/printers"
-  },
-  {
-    id: 9,
-    title: "Earbuds",
-    src: "/ear buds icon.png",
-    href: "/shop/earbuds"
-  },
-  {
-    id: 10,
-    title: "Head Phones",
-    src: "/headphone icon.png",
-    href: "/shop/headphones"
+    title: "Móc khóa cá nhân hóa",
+    description: "In 3D theo tên, số điện thoại & màu sắc riêng",
+    src: "/randomProductImage.svg",
+    href: "/shop"
   },
 ];
 
 export const incentives = [
   {
-    name: "Free Shipping",
-    description:
-      "Our shipping is completely free and that is completely good for our customers.",
+    name: "Miễn Phí Vận Chuyển",
+    description: "Tự động áp dụng cho mọi đơn hàng từ 300.000 ₫ giao hàng toàn quốc.",
     imageSrc: "/shipping icon.png",
   },
   {
-    name: "24/7 Customer Support",
-    description:
-      "Our support is working all day and night to answer any question you have.",
-    imageSrc: "/support icon.png",
+    name: "Thanh Toán COD An Tâm",
+    description: "Kiểm tra đúng mẫu, đúng tên khắc trước khi thanh toán cho shipper.",
+    imageSrc: "/fast shopping icon.png",
   },
   {
-    name: "Fast Shopping Cart",
-    description:
-      "We have super fast shopping experience and you will enjoy it.",
-    imageSrc: "/fast shopping icon.png",
+    name: "Đổi Trả Trong 7 Ngày",
+    description: "Cam kết 1 đổi 1 nhanh chóng nếu sản phẩm có lỗi chế tác hoặc sai sót.",
+    imageSrc: "/support icon.png",
   },
 ];
 
 export const navigation = {
-  sale: [
-    { name: "Discounts", href: "#" },
-    { name: "News", href: "#" },
-    { name: "Register Discounts", href: "#" },
+  products: [
+    { name: "Bộ sưu tập sản phẩm", href: "/shop" },
+    { name: "Móc khóa cá nhân hóa in 3D", href: "/shop" },
   ],
   about: [
-    { name: "About Singitronic", href: "#" },
-    { name: "Work With Us", href: "#" },
-    { name: "Company Profile", href: "#" },
+    { name: "Về Craft3D Studio", href: "/#about" },
+    { name: "Quy trình in 3D", href: "/#process" },
+    { name: "Vật liệu sinh học an toàn", href: "/#about" },
   ],
-  buy: [
-    { name: "Singitronic Loyalty Card", href: "#" },
-    { name: "Terms Of Use", href: "#" },
-    { name: "Privacy Policy", href: "#" },
-    { name: "Complaints", href: "#" },
-    { name: "Partners", href: "#" },
+  policy: [
+    { name: "Chính sách giao hàng (Freeship 300k)", href: "/order-lookup" },
+    { name: "Thanh toán COD khi nhận hàng", href: "/order-lookup" },
+    { name: "Bảo hành đổi mới 7 ngày", href: "/order-lookup" },
   ],
   help: [
-    { name: "Contact", href: "#" },
-    { name: "How to Buy at Singitronic", href: "#" },
-    { name: "FAQ", href: "#" },
+    { name: "Tra cứu đơn hàng", href: "/order-lookup" },
+    { name: "Tư vấn & Thiết kế theo yêu cầu", href: "/#contact" },
   ],
 };
 

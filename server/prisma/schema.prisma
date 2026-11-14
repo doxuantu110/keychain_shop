@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// This is your Prisma schema file for the Express backend
+// Single Source of Truth (SSOT) for the Keychain & Nameplate Store
 
 generator client {
   provider = "prisma-client-js"
@@ -13,84 +10,267 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Product {
-  id             String                   @id @default(uuid())
-  slug           String                   @unique
-  title          String
-  mainImage      String
-  price          Int                      @default(0)
-  rating         Int                      @default(0)
-  description    String
-  manufacturer   String
-  inStock        Int                      @default(1)
-  categoryId     String
-  category       Category                 @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  customerOrders customer_order_product[]
-  Wishlist       Wishlist[]
+// ==========================================
+// 1. PRODUCT, VARIANTS & MEDIA
+// ==========================================
 
-  merchantId     String
-  merchant       Merchant @relation(fields: [merchantId], references: [id])
-  // Back relation for bulk upload items
-  bulkUploadItems bulk_upload_item[]      @relation("ProductBulkItems")
+model Product {
+  id                  String                   @id @default(uuid())
+  slug                String                   @unique
+  title               String
+  mainImage           String
+  price               Int                      @default(0) // Giá thấp nhất của active variants (hiển thị "Từ...")
+  rating              Int                      @default(0)
+  description         String                   @db.Text
+  manufacturer        String
+  inStock             Int                      @default(0) // 1 nếu có variant còn kho hoặc allowPreorder; 0 nếu hết
+  isCustomizable      Boolean                  @default(true) // Cho phép khắc tên / chữ tùy biến
+  maxCustomTextLength Int                      @default(30)
+  isActive            Boolean                  @default(true)
+
+  // AR & 3D Interactive Assets
+  arEnabled           Boolean                  @default(false)
+  glbUrl              String?                  @db.Text // Android Scene Viewer & WebXR
+  usdzUrl             String?                  @db.Text // iOS Quick Look
+
+  // Social Commerce Links
+  shopeeUrl           String?                  @db.VarChar(500)
+  tiktokUrl           String?                  @db.VarChar(500)
+
+  // Relations
+  categoryId          String
+  category            Category                 @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  merchantId          String
+  merchant            Merchant                 @relation(fields: [merchantId], references: [id])
+  variants            ProductVariant[]
+  images              Image[]
+  customerOrders      customer_order_product[]
+  Wishlist            Wishlist[]
+  bulkUploadItems     bulk_upload_item[]       @relation("ProductBulkItems")
+  events              Event[]
+
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  @@index([categoryId])
+  @@index([merchantId])
+  @@index([isActive])
+}
+
+model ProductVariant {
+  id             String                   @id @default(uuid())
+  productId      String
+  product        Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Normalized combination key (vd: "size:6cm|color:none|mat:mica")
+  variantKey     String
+
+  sizeLabel      String                   // vd: "6cm", "8cm", "10cm", "15cm"
+  color          String?                  // vd: "Trong suốt", "Gỗ sáng", "Mica đen"
+  material       String?                  // vd: "Mica", "Gỗ sồi", "Inox"
+  sku            String                   @unique
+
+  price          Int                      // Giá bán thực tế của biến thể (VND)
+  costPrice      Int?                     // Giá vốn duy nhất (Nullable nếu chưa xác minh)
+  isCostAudited  Boolean                  @default(false)
+
+  stock          Int                      @default(0) // Tồn kho thực tế
+  isStockAudited Boolean                  @default(false) // false: Chưa kiểm kho; true: Đã kiểm kho
+  allowPreorder  Boolean                  @default(false) // Bật cho hàng chế tác theo đơn (Made-to-order)
+
+  isActive       Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  orderItems     customer_order_product[]
+  events         Event[]
+
+  @@unique([productId, variantKey], name: "product_variant_key_unique")
+  @@index([productId])
+  @@index([productId, sizeLabel])
 }
 
 model Image {
-  imageID   String @id @default(uuid())
+  imageID   String  @id @default(uuid())
   productID String
+  product   Product @relation(fields: [productID], references: [id], onDelete: Cascade)
   image     String
+
+  @@index([productID])
 }
 
-model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  password      String?
-  role          String?        @default("user")
-  Wishlist      Wishlist[]
-  notifications Notification[]
-  // Back relation for bulk upload batches
-  bulkUploadBatches bulk_upload_batch[] @relation("UserBatches")
-}
+// ==========================================
+// 2. ORDER, SNAPSHOT & CUSTOMIZATION
+// ==========================================
 
 model Customer_order {
-  id          String                   @id @default(uuid())
-  name        String
-  lastname    String
-  phone       String
-  email       String
-  company     String
-  adress      String
-  apartment   String
-  postalCode  String
-  dateTime    DateTime?                @default(now())
-  status      String
-  city        String
-  country     String
-  orderNotice String?
-  total       Int
-  products    customer_order_product[]
+  id            String                   @id @default(uuid())
+  orderCode     String                   @unique // Mã đơn định dạng: MK-YYMMDD-XXXX
+
+  // Khách hàng
+  name          String                   // Firstname hoặc Tên
+  lastname      String                   // Lastname hoặc Họ đệm
+  fullName      String?                  // Họ tên đầy đủ tiếng Việt
+  phone         String
+  email         String
+
+  // Địa chỉ giao hàng Việt Nam chuẩn hóa
+  province      String?                  // Tỉnh / Thành phố
+  district      String?                  // Quận / Huyện
+  ward          String?                  // Phường / Xã
+  addressDetail String?                  // Số nhà, tên ngõ / đường
+
+  // Cột địa chỉ cũ (đặt default để tương thích 100%)
+  company       String                   @default("")
+  adress        String                   @default("")
+  apartment     String                   @default("")
+  postalCode    String                   @default("")
+  city          String                   @default("")
+  country       String                   @default("Vietnam")
+
+  // Tài chính đơn hàng
+  subtotal      Int                      @default(0)
+  shippingFee   Int                      @default(0)
+  total         Int                      // Tổng thanh toán (VND)
+
+  // Phương thức & Trạng thái thanh toán
+  paymentMethod String                   @default("UNVERIFIED") // COD, VNPAY, PAYOS, UNVERIFIED
+  paymentStatus String                   @default("UNVERIFIED") // UNVERIFIED, PENDING, PAID, FAILED, REFUNDED
+
+  // Vòng đời đơn hàng
+  status        String                   @default("PENDING") // PENDING, PENDING_PAYMENT, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+  orderNotice   String?                  @db.Text
+  internalNotes String?                  @db.Text // Ghi chú nội bộ dành riêng cho Admin
+  dateTime      DateTime?                @default(now())
+
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  products      customer_order_product[]
+  statusHistory OrderStatusHistory[]
+  payments      Payment[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
 }
 
 model customer_order_product {
-  id              String         @id @default(uuid())
-  customerOrder   Customer_order @relation(fields: [customerOrderId], references: [id])
-  customerOrderId String
-  product         Product        @relation(fields: [productId], references: [id])
-  productId       String
-  quantity        Int
+  id                  String         @id @default(uuid())
+  customerOrderId     String
+  customerOrder       Customer_order @relation(fields: [customerOrderId], references: [id], onDelete: Cascade)
+
+  productId           String
+  product             Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  variantId           String?        // Nullable để tương thích đơn cũ
+  variant             ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  quantity            Int
+
+  // Snapshot thông tin tại thời điểm mua (Bảo toàn lịch sử giá)
+  unitPrice           Int            @default(0) // Đơn giá mua
+  productTitle        String         @default("") // Tên sản phẩm thời điểm mua
+  sizeLabel           String?        // Kích thước thời điểm mua
+  isEstimatedSnapshot Boolean        @default(false) // true nếu là dữ liệu khôi phục ước lượng
+  snapshotSource      String         @default("CHECKOUT") // "CHECKOUT" hoặc "ESTIMATED_MIGRATION_V1"
+
+  // Dữ liệu tùy biến khắc tên
+  customText          String?        @db.VarChar(255) // Nội dung chữ khắc
+  customFont          String?        @db.VarChar(100) // Tên font chữ
+  customQrUrl         String?        @db.Text        // Nội dung QR code khắc kèm
+
+  @@index([customerOrderId])
+  @@index([productId])
+  @@index([variantId])
+}
+
+model OrderStatusHistory {
+  id         String         @id @default(uuid())
+  orderId    String
+  order      Customer_order @relation(fields: [orderId], references: [id], onDelete: Restrict) // Bảo vệ lịch sử đơn
+  fromStatus String?
+  toStatus   String
+  note       String?        @db.Text
+  changedBy  String?        // SYSTEM, CUSTOMER, GATEWAY_WEBHOOK, hoặc Admin User ID
+  createdAt  DateTime       @default(now())
+
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+model Payment {
+  id          String         @id @default(uuid())
+  orderId     String
+  order       Customer_order @relation(fields: [orderId], references: [id], onDelete: Restrict) // Bảo vệ giao dịch tài chính
+  provider    String         // COD, VNPAY, PAYOS
+  txnRef      String         @unique // Mã giao dịch cổng hoặc mã phiếu thu COD
+  amount      Int            // Số tiền thanh toán (VND)
+  status      String         @default("PENDING") // PENDING, SUCCESS, FAILED, CANCELLED
+  bankCode    String?
+  rawResponse Json?          // Lưu toàn bộ payload IPN/Webhook phục vụ đối soát
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([orderId])
+  @@index([provider, status])
+}
+
+// ==========================================
+// 3. ANALYTICS & EVENT TRACKING
+// ==========================================
+
+model Event {
+  id        String          @id @default(uuid())
+  sessionId String
+
+  userId    String?
+  user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  productId String?
+  product   Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  type      String          // view_product, ar_open, ar_launch, add_to_cart, checkout_start, order_placed, payment_success, order_delivered
+  meta      Json?           // Snapshot: productSlug, device, os, duration...
+  createdAt DateTime        @default(now())
+
+  @@index([type, createdAt])
+  @@index([productId, type])
+  @@index([sessionId])
+}
+
+// ==========================================
+// 4. CÁC MODEL GIỮ NGUYÊN
+// ==========================================
+
+model User {
+  id                String              @id @default(uuid())
+  email             String              @unique
+  password          String?
+  role              String?             @default("user")
+  Wishlist          Wishlist[]
+  notifications     Notification[]
+  bulkUploadBatches bulk_upload_batch[] @relation("UserBatches")
+  events            Event[]
 }
 
 model Category {
   id       String    @id @default(uuid())
   name     String    @unique
-  products Product[] // Define a one-to-many relationship
+  products Product[]
 }
 
 model Wishlist {
   id        String  @id @default(uuid())
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum NotificationType {
@@ -125,56 +305,48 @@ model Notification {
   @@index([userId, type])
   @@index([createdAt])
 }
+
 model Merchant {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
   description String?
   email       String?
   phone       String?
   address     String?
-  status      String   @default("ACTIVE")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // relasi
-  products Product[]
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
 }
 
 model bulk_upload_batch {
-  id         String              @id @default(uuid())
+  id         String             @id @default(uuid())
   fileName   String?
-  createdAt  DateTime            @default(now())
-  status     BulkUploadStatus    @default(PENDING)
-  itemCount  Int                 @default(0)
-  errorCount Int                 @default(0)
+  createdAt  DateTime           @default(now())
+  status     BulkUploadStatus   @default(PENDING)
+  itemCount  Int                @default(0)
+  errorCount Int                @default(0)
+  userId     String?
+  user       User?              @relation(name: "UserBatches", fields: [userId], references: [id])
   items      bulk_upload_item[]
-
-  // optional uploader link if you later associate sessions/users
-  userId String?
-  user   User?                  @relation(name: "UserBatches", fields: [userId], references: [id])
 }
 
 model bulk_upload_item {
-  id        String            @id @default(uuid())
-  batchId   String
-  batch     bulk_upload_batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-
-  // created product reference
-  productId String?
-  product   Product?          @relation(name: "ProductBulkItems", fields: [productId], references: [id], onDelete: SetNull)
-
-  // snapshot fields for auditing and re-commit edits
-  title         String
-  slug          String
-  price         Int
-  manufacturer  String?
-  description   String?
-  mainImage     String?
-  categoryId    String
-  inStock       Int
-
-  status        BulkUploadItemStatus @default(CREATED)
-  error         String?
+  id           String               @id @default(uuid())
+  batchId      String
+  batch        bulk_upload_batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  productId    String?
+  product      Product?             @relation(name: "ProductBulkItems", fields: [productId], references: [id], onDelete: SetNull)
+  title        String
+  slug         String
+  price        Int
+  manufacturer String?
+  description  String?
+  mainImage    String?
+  categoryId   String
+  inStock      Int
+  status       BulkUploadItemStatus @default(CREATED)
+  error        String?
 }
 
 enum BulkUploadStatus {
@@ -188,4 +360,69 @@ enum BulkUploadItemStatus {
   CREATED
   UPDATED
   ERROR
+}
+
+model MigrationAuditLog {
+  id        String   @id @default(uuid())
+  phase     String
+  tableName String
+  recordId  String
+  action    String
+  oldData   Json?
+  newData   Json?
+  createdAt DateTime @default(now())
+
+  @@index([phase, tableName])
+  @@map("_migration_audit_log")
+}
+
+// ==========================================
+// 5. DATABASE-BACKED IDEMPOTENCY (PHASE 3.6)
+// ==========================================
+
+model IdempotencyRecord {
+  id           String    @id @default(uuid())
+  key          String    @unique @db.VarChar(191)
+  status       String    @default("PROCESSING") // PROCESSING, COMPLETED, FAILED
+  payloadHash  String    @db.VarChar(64)
+  statusCode   Int?
+  responseBody Json?
+  orderId      String?
+  lockedAt     DateTime  @default(now())
+  completedAt  DateTime?
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status, expiresAt])
+  @@map("idempotency_records")
+}
+
+// ==========================================
+// 6. DURABLE EMAIL OUTBOX PATTERN (PHASE 4)
+// ==========================================
+
+model EmailOutbox {
+  id             String    @id @default(uuid())
+  orderId        String
+  orderCode      String
+  eventType      String    // ORDER_CONFIRMATION, PAYMENT_INSTRUCTIONS, PAYMENT_SUCCESS, ORDER_CONFIRMED, ORDER_SHIPPED, ORDER_DELIVERED, ORDER_CANCELLED, MANUAL_RESEND
+  recipient      String
+  subject        String
+  htmlContent    String    @db.Text
+  textContent    String?   @db.Text
+  status         String    @default("PENDING") // PENDING, PROCESSING, SENT, FAILED
+  retryCount     Int       @default(0)
+  maxRetries     Int       @default(3)
+  lastError      String?   @db.Text
+  sentAt         DateTime?
+  idempotencyKey String    @unique @db.VarChar(191) // Đảm bảo không trùng lặp email khi webhook retry
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, retryCount])
+  @@index([status, updatedAt])
+  @@index([orderCode])
+  @@index([orderId])
+  @@map("email_outbox")
 }

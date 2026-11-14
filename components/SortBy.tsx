@@ -1,35 +1,28 @@
-// *********************
-// Role of the component: SortBy
-// Name of the component: SortBy.tsx
-// Developer: Aleksandar Kuzmanovic
-// Version: 1.0
-// Component call: <SortBy />
-// Input parameters: no input parameters
-// Output: select input with options for sorting by a-z, z-a, price low, price high
-// *********************
-
 "use client";
+
 import React from "react";
 import { useSortStore } from "@/app/_zustand/sortStore";
 
 const SortBy = () => {
-  // getting values from Zustand sort store
   const { sortBy, changeSortBy } = useSortStore();
 
   return (
-    <div className="flex items-center gap-x-5 max-lg:flex-col max-lg:w-full max-lg:items-start">
-      <h3 className="text-xl">Sort by:</h3>
+    <div className="flex items-center gap-2 text-xs sm:text-sm">
+      <label htmlFor="sort-select" className="text-gray-500 font-medium whitespace-nowrap">
+        Sắp xếp theo:
+      </label>
       <select
-        defaultValue={sortBy}
+        id="sort-select"
+        value={sortBy}
         onChange={(e) => changeSortBy(e.target.value)}
-        className="select border-gray-400 py-2 px-2 text-base border-2 select-bordered w-40 focus:outline-none outline-none max-lg:w-full bg-white"
+        className="rounded-xl border border-gray-200 bg-white py-2 px-3 text-xs sm:text-sm text-[#1E2229] font-medium outline-none focus:border-[#E06D53] focus:ring-2 focus:ring-[#E06D53]/20 transition-all cursor-pointer shadow-sm"
         name="sort"
       >
-        <option value="defaultSort">Default</option>
-        <option value="titleAsc">Sort A-Z</option>
-        <option value="titleDesc">Sort Z-A</option>
-        <option value="lowPrice">Lowest Price</option>
-        <option value="highPrice">Highest Price</option>
+        <option value="defaultSort">Mặc định</option>
+        <option value="lowPrice">Giá thấp đến cao</option>
+        <option value="highPrice">Giá cao đến thấp</option>
+        <option value="titleAsc">Tên sản phẩm A-Z</option>
+        <option value="titleDesc">Tên sản phẩm Z-A</option>
       </select>
     </div>
   );

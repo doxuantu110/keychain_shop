@@ -36,29 +36,28 @@ const DashboardCreateNewUser = () => {
       }
 
       if (userInput.password.length > 7) {
-        const requestOptions: any = {
-          method: "post",
+        const requestOptions: RequestInit = {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(sanitizedUserInput),
         };
-        ap(`/api/users`, requestOptions)
-          .then((response) => {
-            if(response.status === 201){
+        fetch(`/api/users`, requestOptions)
+          .then((response: Response) => {
+            if (response.status === 201) {
               return response.json();
-
-            }else{
-              
+            } else {
               throw Error("Error while creating user");
             }
           })
-          .then((data) => {
+          .then((_data: unknown) => {
             toast.success("User added successfully");
             setUserInput({
               email: "",
               password: "",
               role: "user",
             });
-          }).catch(error => {
+          })
+          .catch((_error: unknown) => {
             toast.error("Error while creating user");
           });
       } else {

@@ -1,69 +1,54 @@
-// *********************
-// Role of the component: Quantity input for incrementing and decrementing product quantity on the cart page
-// Name of the component: QuantityInputCart.tsx
-// Developer: Aleksandar Kuzmanovic
-// Version: 1.0
-// Component call: <QuantityInputCart product={product} />
-// Input parameters: { product: ProductInCart }
-// Output: one number input and two buttons
-// *********************
-
 "use client";
-import { ProductInCart, useProductStore } from "@/app/_zustand/store";
-import React, { useState } from "react";
-import { FaPlus } from "react-icons/fa6";
-import { FaMinus } from "react-icons/fa6";
 
-const QuantityInputCart = ({ product } : { product: ProductInCart }) => {
-  const [quantityCount, setQuantityCount] = useState<number>(product.amount);
-  const { updateCartAmount, calculateTotals } = useProductStore();
+import { CartItem } from "@/types/cart";
+import { useProductStore } from "@/app/_zustand/store";
+import React from "react";
+import { FaPlus, FaMinus } from "react-icons/fa6";
 
-  const handleQuantityChange = (actionName: string): void => {
-    if (actionName === "plus") {
-      setQuantityCount(() => quantityCount + 1);
-      updateCartAmount(product.id, quantityCount + 1);
-      calculateTotals();
+interface Props {
+  product: CartItem;
+}
 
-      
-    } else if (actionName === "minus" && quantityCount !== 1) {
-      setQuantityCount(() => quantityCount - 1);
-      updateCartAmount(product.id, quantityCount - 1);
-      calculateTotals();
+const QuantityInputCart: React.FC<Props> = ({ product }) => {
+  const { updateCartAmount } = useProductStore();
+  const itemId = product.cartItemId || product.id;
+
+  const handleIncrement = () => {
+    if (!product.allowPreorder && product.stock !== undefined && product.amount >= product.stock) {
+      return;
+    }
+    updateCartAmount(itemId, product.amount + 1);
+  };
+
+  const handleDecrement = () => {
+    if (product.amount > 1) {
+      updateCartAmount(itemId, product.amount - 1);
     }
   };
 
   return (
-    <div>
-      <label htmlFor="Quantity" className="sr-only">
-        {" "}
-        Quantity{" "}
-      </label>
+    <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white w-28 h-9">
+      <button
+        type="button"
+        className="w-8 h-full text-gray-500 hover:bg-gray-100 flex items-center justify-center disabled:opacity-40"
+        onClick={handleDecrement}
+        disabled={product.amount <= 1}
+      >
+        <FaMinus className="text-xs" />
+      </button>
 
-      <div className="flex items-center justify-center rounded border border-gray-200 w-32">
-        <button
-          type="button"
-          className="size-10 leading-10 text-gray-600 transition hover:opacity-75 flex items-center justify-center"
-          onClick={() => handleQuantityChange("minus")}
-        >
-          <FaMinus />
-        </button>
+      <span className="flex-1 text-center font-semibold text-sm text-gray-800 select-none">
+        {product.amount}
+      </span>
 
-        <input
-          type="number"
-          id="Quantity"
-          disabled={true}
-          value={quantityCount}
-          className="h-10 w-16 border-transparent text-center [-moz-appearance:_textfield] sm:text-sm [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
-        />
-
-        <button
-          type="button"
-          className="size-10 leading-10 text-gray-600 transition hover:opacity-75 flex items-center justify-center"
-          onClick={() => handleQuantityChange("plus")}
-        >
-          <FaPlus />
-        </button>
-      </div>
+      <button
+        type="button"
+        className="w-8 h-full text-gray-500 hover:bg-gray-100 flex items-center justify-center disabled:opacity-40"
+        onClick={handleIncrement}
+        disabled={!product.allowPreorder && product.stock !== undefined && product.amount >= product.stock}
+      >
+        <FaPlus className="text-xs" />
+      </button>
     </div>
   );
 };

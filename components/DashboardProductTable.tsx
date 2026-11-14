@@ -1,130 +1,115 @@
-// *********************
-// Role of the component: Product table component on admin dashboard page
-// Name of the component: DashboardProductTable.tsx
-// Developer: Aleksandar Kuzmanovic
-// Version: 1.0
-// Component call: <DashboardProductTable />
-// Input parameters: no input parameters
-// Output: products table
-// *********************
-
 "use client";
+
 import { nanoid } from "nanoid";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import CustomButton from "./CustomButton";
 import apiClient from "@/lib/api";
 import { sanitize } from "@/lib/sanitize";
+import { formatVND } from "@/types/cart";
+import { Product } from "@/types/product";
+import { FaPlus, FaCube } from "react-icons/fa6";
 
 const DashboardProductTable = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiClient.get("/api/products?mode=admin", {cache: "no-store"})
-      .then((res) => {
-        return res.json();
-      })
+    apiClient
+      .get("/api/products?mode=admin", { cache: "no-store" })
+      .then((res) => res.json())
       .then((data) => {
-        setProducts(data);
-      });
+        setProducts(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
-    <div className="w-full">
-      <h1 className="text-3xl font-semibold text-center mb-5">All products</h1>
-      <div className="flex justify-end mb-5">
-        <Link href="/admin/products/new">
-          <CustomButton
-            buttonType="button"
-            customWidth="110px"
-            paddingX={10}
-            paddingY={5}
-            textSize="base"
-            text="Add new product"
-          />
+    <div className="w-full bg-white rounded-3xl border border-[#E7E5E4] p-6 shadow-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-gray-100">
+        <div>
+          <h2 className="text-xl font-bold text-[#1E2229]">Danh Sách Sản Phẩm In 3D</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Quản lý catalog sản phẩm, biến thể và chế tác</p>
+        </div>
+        <Link
+          href="/admin/products/new"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1E2229] hover:bg-[#E06D53] text-white text-xs font-semibold transition-colors shadow-sm"
+        >
+          <FaPlus className="text-[10px]" />
+          <span>Thêm sản phẩm mới</span>
         </Link>
       </div>
 
-      <div className="xl:ml-5 w-full max-xl:mt-5 overflow-auto w-full h-[80vh]">
-        <table className="table table-md table-pin-cols">
-          {/* head */}
+      <div className="overflow-x-auto">
+        <table className="table table-md w-full">
           <thead>
-            <tr>
-              <th>
-                <label>
-                  <input type="checkbox" className="checkbox" />
-                </label>
-              </th>
-              <th>Product</th>
-              <th>Stock Availability</th>
-              <th>Price</th>
-              <th></th>
+            <tr className="border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider">
+              <th>Sản phẩm</th>
+              <th>Xưởng chế tác</th>
+              <th>Tình trạng kho</th>
+              <th>Giá từ (VND)</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
-          <tbody>
-            {/* row 1 */}
-            {products &&
+          <tbody className="divide-y divide-gray-100 text-sm">
+            {products.length > 0 ? (
               products.map((product) => (
-                <tr key={nanoid()}>
-                  <th>
-                    <label>
-                      <input type="checkbox" className="checkbox" />
-                    </label>
-                  </th>
-
+                <tr key={product.id || nanoid()} className="hover:bg-gray-50/60 transition-colors">
                   <td>
                     <div className="flex items-center gap-3">
-                      <div className="avatar">
-                        <div className="mask mask-squircle w-12 h-12">
-                          <Image
-                            width={48}
-                            height={48}
-                            src={product?.mainImage ? `/${product?.mainImage}` : "/product_placeholder.jpg"}
-                            alt={sanitize(product?.title) || "Product image"}
-                            className="w-auto h-auto"
-                          />
-                        </div>
+                      <div className="w-12 h-12 rounded-xl bg-[#FAF9F6] border border-gray-200 overflow-hidden flex items-center justify-center p-1 flex-shrink-0">
+                        <Image
+                          width={48}
+                          height={48}
+                          src={product?.mainImage ? `/${product?.mainImage}` : "/product_placeholder.jpg"}
+                          alt={sanitize(product?.title) || "Móc khóa in 3D"}
+                          className="w-full h-full object-contain"
+                        />
                       </div>
                       <div>
-                        <div className="font-bold">{sanitize(product?.title)}</div>
-                        <div className="text-sm opacity-50">
-                          {sanitize(product?.manufacturer)}
+                        <div className="font-bold text-[#1E2229] line-clamp-1">{sanitize(product?.title)}</div>
+                        <div className="text-xs text-gray-400">
+                          {product?.category?.name || "Chưa phân loại"}
                         </div>
                       </div>
                     </div>
                   </td>
-
-                  <td>
-                    { product?.inStock ? (<span className="badge badge-success text-white badge-sm">
-                      In stock
-                    </span>) : (<span className="badge badge-error text-white badge-sm">
-                      Out of stock
-                    </span>) }
-                    
+                  <td className="text-xs text-gray-600 font-medium">
+                    {sanitize(product?.manufacturer) || "Craft3D"}
                   </td>
-                  <td>${product?.price}</td>
-                  <th>
+                  <td>
+                    {product?.inStock ? (
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                        Còn hàng / Đặt trước
+                      </span>
+                    ) : (
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800">
+                        Hết hàng
+                      </span>
+                    )}
+                  </td>
+                  <td className="font-bold text-[#1E2229]">
+                    {formatVND(product?.price)}
+                  </td>
+                  <td>
                     <Link
                       href={`/admin/products/${product.id}`}
-                      className="btn btn-ghost btn-xs"
+                      className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-[#1E2229] hover:text-white hover:border-[#1E2229] text-xs font-semibold transition-all shadow-xs"
                     >
-                      details
+                      Chi tiết
                     </Link>
-                  </th>
+                  </td>
                 </tr>
-              ))}
+              ))
+            ) : (
+              <tr>
+                <td colSpan={5} className="text-center py-10 text-xs text-gray-400">
+                  {loading ? "Đang tải danh sách sản phẩm..." : "Chưa có sản phẩm nào trong hệ thống."}
+                </td>
+              </tr>
+            )}
           </tbody>
-          {/* foot */}
-          <tfoot>
-            <tr>
-              <th></th>
-              <th>Product</th>
-              <th>Stock Availability</th>
-              <th>Price</th>
-              <th></th>
-            </tr>
-          </tfoot>
         </table>
       </div>
     </div>

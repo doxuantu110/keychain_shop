@@ -1,8 +1,13 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../utills/db");
 const { asyncHandler, AppError } = require("../utills/errorHandler");
+const { checkIsAdmin } = require("../middleware/auth");
 
 const createCategory = asyncHandler(async (request, response) => {
+  const isAdmin = await checkIsAdmin(request);
+  if (!isAdmin) {
+    throw new AppError("Yêu cầu quyền quản trị viên (Admin) để tạo danh mục", 401);
+  }
+
   const { name } = request.body;
 
   if (!name || name.trim().length === 0) {
@@ -18,6 +23,11 @@ const createCategory = asyncHandler(async (request, response) => {
 });
 
 const updateCategory = asyncHandler(async (request, response) => {
+  const isAdmin = await checkIsAdmin(request);
+  if (!isAdmin) {
+    throw new AppError("Yêu cầu quyền quản trị viên (Admin) để cập nhật danh mục", 401);
+  }
+
   const { id } = request.params;
   const { name } = request.body;
 
@@ -52,6 +62,11 @@ const updateCategory = asyncHandler(async (request, response) => {
 });
 
 const deleteCategory = asyncHandler(async (request, response) => {
+  const isAdmin = await checkIsAdmin(request);
+  if (!isAdmin) {
+    throw new AppError("Yêu cầu quyền quản trị viên (Admin) để xóa danh mục", 401);
+  }
+
   const { id } = request.params;
 
   if (!id) {

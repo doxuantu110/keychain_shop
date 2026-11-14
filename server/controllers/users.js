@@ -1,6 +1,7 @@
 const prisma = require("../utills/db");
 const bcrypt = require("bcryptjs");
 const { asyncHandler, AppError } = require("../utills/errorHandler");
+const { checkIsAdmin } = require("../middleware/auth");
 
 // Helper function to exclude password from user object
 function excludePassword(user) {
@@ -10,6 +11,11 @@ function excludePassword(user) {
 }
 
 const getAllUsers = asyncHandler(async (request, response) => {
+  const isAdmin = await checkIsAdmin(request);
+  if (!isAdmin) {
+    throw new AppError("Yêu cầu quyền quản trị viên (Admin) để xem danh sách người dùng", 401);
+  }
+
   const users = await prisma.user.findMany({});
   // Exclude password from all users
   const usersWithoutPasswords = users.map(user => excludePassword(user));
@@ -35,13 +41,17 @@ const createUser = asyncHandler(async (request, response) => {
     throw new AppError("Password must be at least 8 characters long", 400);
   }
 
+  // Security: Only verified Admin can create accounts with "admin" role
+  const isAdmin = await checkIsAdmin(request);
+  const assignedRole = (isAdmin && role) ? role : "user";
+
   const hashedPassword = await bcrypt.hash(password, 14);
 
   const user = await prisma.user.create({
     data: {
       email,
       password: hashedPassword,
-      role: role || "user",
+      role: assignedRole,
     },
   });
   // Exclude password from response
@@ -82,6 +92,11 @@ const updateUser = asyncHandler(async (request, response) => {
     updateData.password = await bcrypt.hash(password, 14);
   }
   if (role) {
+    // Security: Only verified Admin can change user roles (prevent privilege escalation)
+    const isAdmin = await checkIsAdmin(request);
+    if (!isAdmin) {
+      throw new AppError("Yêu cầu quyền quản trị viên (Admin) để thay đổi vai trò (role) người dùng", 403);
+    }
     updateData.role = role;
   }
 
@@ -97,6 +112,11 @@ const updateUser = asyncHandler(async (request, response) => {
 });
 
 const deleteUser = asyncHandler(async (request, response) => {
+  const isAdmin = await checkIsAdmin(request);
+  if (!isAdmin) {
+    throw new AppError("Yêu cầu quyền quản trị viên (Admin) để xóa người dùng", 401);
+  }
+
   const { id } = request.params;
 
   if (!id) {

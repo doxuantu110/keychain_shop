@@ -1,68 +1,83 @@
-// *********************
-// Role of the component: Topbar of the header
-// Name of the component: HeaderTop.tsx
-// Developer: Aleksandar Kuzmanovic
-// Version: 1.0
-// Component call: <HeaderTop />
-// Input parameters: no input parameters
-// Output: topbar with phone, email and login and register links
-// *********************
-
 "use client";
+
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import React from "react";
 import toast from "react-hot-toast";
-import { FaHeadphones } from "react-icons/fa6";
-import { FaRegEnvelope } from "react-icons/fa6";
-import { FaLocationDot } from "react-icons/fa6";
-import { FaRegUser } from "react-icons/fa6";
+import { FaRegUser, FaMagnifyingGlass, FaTruckFast, FaArrowRightFromBracket } from "react-icons/fa6";
 
 const HeaderTop = () => {
-  const { data: session }: any = useSession();
+  const { data: session } = useSession();
 
   const handleLogout = () => {
-    setTimeout(() => signOut(), 1000);
-    toast.success("Logout successful!");
-  }
+    signOut({ callbackUrl: "/" });
+    toast.success("Đã đăng xuất thành công!");
+  };
+
   return (
-    <div className="h-10 text-white bg-blue-500 max-lg:px-5 max-lg:h-16 max-[573px]:px-0">
-      <div className="flex justify-between h-full max-lg:flex-col max-lg:justify-center max-lg:items-center max-w-screen-2xl mx-auto px-12 max-[573px]:px-0">
-        <ul className="flex items-center h-full gap-x-5 max-[370px]:text-sm max-[370px]:gap-x-2">
-          <li className="flex items-center gap-x-2 font-semibold">
-            <FaHeadphones className="text-white" />
-            <span>+381 61 123 321</span>
-          </li>
-          <li className="flex items-center gap-x-2 font-semibold">
-            <FaRegEnvelope className="text-white text-xl" />
-            <span>test@email.com</span>
-          </li>
-        </ul>
-        <ul className="flex items-center gap-x-5 h-full max-[370px]:text-sm max-[370px]:gap-x-2 font-semibold">
-          {!session ? ( 
-          <>
-          <li className="flex items-center">
-            <Link href="/login" className="flex items-center gap-x-2 font-semibold">
-              <FaRegUser className="text-white" />
-              <span>Login</span>
+    <div className="h-10 text-xs text-gray-300 bg-[#181B20] border-b border-[#2D323C]">
+      <div className="flex justify-between items-center h-full max-w-screen-2xl mx-auto px-6 lg:px-12">
+        {/* Banner thông báo */}
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 text-[#E06D53] font-medium">
+            <FaTruckFast />
+            <span>Ưu đãi:</span>
+          </span>
+          <span className="hidden sm:inline text-gray-300">
+            Miễn phí vận chuyển đơn từ 300.000 ₫ • Kiểm tra hàng trước khi thanh toán (COD)
+          </span>
+          <span className="sm:hidden text-gray-300 truncate max-w-[200px]">
+            Freeship đơn từ 300k
+          </span>
+        </div>
+
+        {/* Liên kết tiện ích */}
+        <ul className="flex items-center gap-x-4 sm:gap-x-6 h-full font-medium">
+          <li>
+            <Link
+              href="/order-lookup"
+              className="flex items-center gap-x-1.5 text-gray-300 hover:text-white transition-colors"
+            >
+              <FaMagnifyingGlass className="text-[11px] text-[#E06D53]" />
+              <span>Tra cứu đơn hàng</span>
             </Link>
           </li>
-          <li className="flex items-center">
-            <Link href="/register" className="flex items-center gap-x-2 font-semibold">
-              <FaRegUser className="text-white" />
-              <span>Register</span>
-            </Link>
-          </li>
-          </>
-          ) :  (<>
-          <span className="ml-10 text-base">{session.user?.email}</span>
-          <li className="flex items-center">
-            <button onClick={() => handleLogout()} className="flex items-center gap-x-2 font-semibold">
-              <FaRegUser className="text-white" />
-              <span>Log out</span>
-            </button>
-          </li>
-          </>)}
+
+          {!session ? (
+            <>
+              <li>
+                <Link
+                  href="/login"
+                  className="flex items-center gap-x-1.5 text-gray-300 hover:text-white transition-colors"
+                >
+                  <FaRegUser className="text-[11px]" />
+                  <span>Đăng nhập</span>
+                </Link>
+              </li>
+              <li className="hidden sm:block">
+                <Link
+                  href="/register"
+                  className="text-gray-300 hover:text-white transition-colors"
+                >
+                  Đăng ký
+                </Link>
+              </li>
+            </>
+          ) : (
+            <li className="flex items-center gap-x-3">
+              <span className="hidden sm:inline text-gray-300 max-w-[150px] truncate">
+                {session.user?.name || session.user?.email}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-x-1 text-gray-400 hover:text-rose-400 transition-colors"
+                title="Đăng xuất"
+              >
+                <FaArrowRightFromBracket className="text-[11px]" />
+                <span>Đăng xuất</span>
+              </button>
+            </li>
+          )}
         </ul>
       </div>
     </div>

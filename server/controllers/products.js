@@ -1,5 +1,6 @@
 const prisma = require("../utills/db"); // ✅ Use shared connection with SSL
 const { asyncHandler, handleServerError, AppError } = require("../utills/errorHandler");
+const { checkIsAdmin } = require("../middleware/auth");
 
 // Security: Define whitelists for allowed filter types and operators
 const ALLOWED_FILTER_TYPES = ['price', 'rating', 'category', 'inStock', 'outOfStock'];
@@ -72,9 +73,31 @@ function buildSafeFilterObject(filterArray) {
 const getAllProducts = asyncHandler(async (request, response) => {
   const mode = request.query.mode || "";
   
-  // checking if we are on the admin products page because we don't want to have filtering, sorting and pagination there
+  // Audit 4: Bắt buộc xác thực quyền Admin khi mode=admin, không coi query parameter là cơ chế xác thực
   if(mode === "admin"){
-    const adminProducts = await prisma.product.findMany({});
+    const isAdmin = await checkIsAdmin(request);
+    if (!isAdmin) {
+      return response.status(401).json({
+        error: "Unauthorized",
+        details: "Yêu cầu quyền quản trị viên (Admin) để truy cập danh sách sản phẩm quản trị"
+      });
+    }
+
+    const adminProducts = await prisma.product.findMany({
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        variants: {
+          orderBy: { price: "asc" },
+        },
+        images: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
     return response.json(adminProducts);
   } else {
     const dividerLocation = request.url.indexOf("?");
@@ -160,6 +183,8 @@ const getAllProducts = asyncHandler(async (request, response) => {
     }
 
     let whereClause = { ...filterObj };
+    // Enforce isActive = true for public storefront queries
+    whereClause.isActive = true;
 
     // Security: Handle category filter separately with validation
     if (filterObj.category && filterObj.category.equals) {
@@ -187,19 +212,28 @@ const getAllProducts = asyncHandler(async (request, response) => {
         sortObj = {};
     }
 
+    const defaultInclude = {
+      category: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      variants: {
+        where: { isActive: true },
+        orderBy: { price: "asc" },
+      },
+      images: true,
+    };
+
     let products;
 
     if (Object.keys(filterObj).length === 0) {
       products = await prisma.product.findMany({
         skip: (validatedPage - 1) * 10,
         take: 12,
-        include: {
-          category: {
-            select: {
-              name: true,
-            },
-          },
-        },
+        where: whereClause,
+        include: defaultInclude,
         orderBy: sortObj,
       });
     } else {
@@ -208,13 +242,7 @@ const getAllProducts = asyncHandler(async (request, response) => {
         products = await prisma.product.findMany({
           skip: (validatedPage - 1) * 10,
           take: 12,
-          include: {
-            category: {
-              select: {
-                name: true,
-              },
-            },
-          },
+          include: defaultInclude,
           where: {
             ...whereClause,
             category: {
@@ -229,13 +257,7 @@ const getAllProducts = asyncHandler(async (request, response) => {
         products = await prisma.product.findMany({
           skip: (validatedPage - 1) * 10,
           take: 12,
-          include: {
-            category: {
-              select: {
-                name: true,
-              },
-            },
-          },
+          include: defaultInclude,
           where: whereClause,
           orderBy: sortObj,
         });
@@ -260,6 +282,11 @@ const getAllProductsOld = asyncHandler(async (request, response) => {
 });
 
 const createProduct = asyncHandler(async (request, response) => {
+  const isAdmin = await checkIsAdmin(request);
+  if (!isAdmin) {
+    throw new AppError("Yêu cầu quyền quản trị viên (Admin) để tạo sản phẩm mới", 401);
+  }
+
   const {
     merchantId,
     slug,
@@ -270,6 +297,14 @@ const createProduct = asyncHandler(async (request, response) => {
     manufacturer,
     categoryId,
     inStock,
+    isCustomizable,
+    maxCustomTextLength,
+    arEnabled,
+    glbUrl,
+    usdzUrl,
+    shopeeUrl,
+    tiktokUrl,
+    isActive,
   } = request.body;
 
   if (!title) {
@@ -285,7 +320,7 @@ const createProduct = asyncHandler(async (request, response) => {
     throw new AppError("Missing required field: slug", 400);
   }
 
-  if (!price) {
+  if (price === undefined || price === null) {
     throw new AppError("Missing required field: price", 400);
   }
 
@@ -298,13 +333,21 @@ const createProduct = asyncHandler(async (request, response) => {
       merchantId,
       slug,
       title,
-      mainImage,
-      price,
+      mainImage: mainImage || "",
+      price: parseInt(price, 10) || 0,
       rating: 5,
-      description,
-      manufacturer,
+      description: description || "",
+      manufacturer: manufacturer || "Handmade",
       categoryId,
-      inStock,
+      inStock: inStock !== undefined ? inStock : 0,
+      isCustomizable: isCustomizable !== undefined ? Boolean(isCustomizable) : true,
+      maxCustomTextLength: maxCustomTextLength ? parseInt(maxCustomTextLength, 10) : 30,
+      arEnabled: Boolean(arEnabled),
+      glbUrl: glbUrl || null,
+      usdzUrl: usdzUrl || null,
+      shopeeUrl: shopeeUrl || null,
+      tiktokUrl: tiktokUrl || null,
+      isActive: isActive !== undefined ? Boolean(isActive) : true,
     },
   });
   return response.status(201).json(product);
@@ -312,6 +355,11 @@ const createProduct = asyncHandler(async (request, response) => {
 
 // Method for updating existing product
 const updateProduct = asyncHandler(async (request, response) => {
+  const isAdmin = await checkIsAdmin(request);
+  if (!isAdmin) {
+    throw new AppError("Yêu cầu quyền quản trị viên (Admin) để cập nhật sản phẩm", 401);
+  }
+
   const { id } = request.params;
   const {
     merchantId,
@@ -324,6 +372,14 @@ const updateProduct = asyncHandler(async (request, response) => {
     manufacturer,
     categoryId,
     inStock,
+    isCustomizable,
+    maxCustomTextLength,
+    arEnabled,
+    glbUrl,
+    usdzUrl,
+    shopeeUrl,
+    tiktokUrl,
+    isActive,
   } = request.body;
 
   // Basic validation
@@ -343,22 +399,31 @@ const updateProduct = asyncHandler(async (request, response) => {
   }
 
   // Updating found product
+  const updateData = {};
+  if (merchantId !== undefined) updateData.merchantId = merchantId;
+  if (title !== undefined) updateData.title = title;
+  if (mainImage !== undefined) updateData.mainImage = mainImage;
+  if (slug !== undefined) updateData.slug = slug;
+  if (price !== undefined) updateData.price = parseInt(price, 10);
+  if (rating !== undefined) updateData.rating = rating;
+  if (description !== undefined) updateData.description = description;
+  if (manufacturer !== undefined) updateData.manufacturer = manufacturer;
+  if (categoryId !== undefined) updateData.categoryId = categoryId;
+  if (inStock !== undefined) updateData.inStock = inStock;
+  if (isCustomizable !== undefined) updateData.isCustomizable = Boolean(isCustomizable);
+  if (maxCustomTextLength !== undefined) updateData.maxCustomTextLength = parseInt(maxCustomTextLength, 10);
+  if (arEnabled !== undefined) updateData.arEnabled = Boolean(arEnabled);
+  if (glbUrl !== undefined) updateData.glbUrl = glbUrl;
+  if (usdzUrl !== undefined) updateData.usdzUrl = usdzUrl;
+  if (shopeeUrl !== undefined) updateData.shopeeUrl = shopeeUrl;
+  if (tiktokUrl !== undefined) updateData.tiktokUrl = tiktokUrl;
+  if (isActive !== undefined) updateData.isActive = Boolean(isActive);
+
   const updatedProduct = await prisma.product.update({
     where: {
       id,
     },
-    data: {
-      merchantId: merchantId,
-      title: title,
-      mainImage: mainImage,
-      slug: slug,
-      price: price,
-      rating: rating,
-      description: description,
-      manufacturer: manufacturer,
-      categoryId: categoryId,
-      inStock: inStock,
-    },
+    data: updateData,
   });
 
   return response.status(200).json(updatedProduct);
@@ -366,6 +431,11 @@ const updateProduct = asyncHandler(async (request, response) => {
 
 // Method for deleting a product
 const deleteProduct = asyncHandler(async (request, response) => {
+  const isAdmin = await checkIsAdmin(request);
+  if (!isAdmin) {
+    throw new AppError("Yêu cầu quyền quản trị viên (Admin) để xóa sản phẩm", 401);
+  }
+
   const { id } = request.params;
 
   if (!id) {
@@ -379,8 +449,8 @@ const deleteProduct = asyncHandler(async (request, response) => {
     },
   });
   
-  if(relatedOrderProductItems.length > 0){
-    throw new AppError("Cannot delete product because of foreign key constraint", 400);
+  if (relatedOrderProductItems.length > 0) {
+    throw new AppError("Cannot delete product because it has associated customer orders. Set isActive to false instead.", 400);
   }
 
   await prisma.product.delete({
@@ -400,6 +470,7 @@ const searchProducts = asyncHandler(async (request, response) => {
 
   const products = await prisma.product.findMany({
     where: {
+      isActive: true,
       OR: [
         {
           title: {
@@ -413,6 +484,19 @@ const searchProducts = asyncHandler(async (request, response) => {
         },
       ],
     },
+    include: {
+      category: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      variants: {
+        where: { isActive: true },
+        orderBy: { price: "asc" },
+      },
+      images: true,
+    },
   });
 
   return response.json(products);
@@ -420,10 +504,14 @@ const searchProducts = asyncHandler(async (request, response) => {
 
 const getProductById = asyncHandler(async (request, response) => {
   const { id } = request.params;
+  const mode = request.query.mode || "";
   
   if (!id) {
     throw new AppError("Product ID is required", 400);
   }
+
+  const isAdmin = await checkIsAdmin(request);
+  const isRequestedAdminMode = mode === "admin" && isAdmin;
 
   const product = await prisma.product.findUnique({
     where: {
@@ -431,10 +519,15 @@ const getProductById = asyncHandler(async (request, response) => {
     },
     include: {
       category: true,
+      variants: {
+        where: isRequestedAdminMode ? {} : { isActive: true },
+        orderBy: { price: "asc" },
+      },
+      images: true,
     },
   });
   
-  if (!product) {
+  if (!product || (!isRequestedAdminMode && !product.isActive)) {
     throw new AppError("Product not found", 404);
   }
   

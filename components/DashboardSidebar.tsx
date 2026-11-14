@@ -1,77 +1,54 @@
-// *********************
-// Role of the component: Sidebar on admin dashboard page
-// Name of the component: DashboardSidebar.tsx
-// Developer: Aleksandar Kuzmanovic
-// Version: 1.0
-// Component call: <DashboardSidebar />
-// Input parameters: no input parameters
-// Output: sidebar for admin dashboard page
-// *********************
+"use client";
 
 import React from "react";
 import { MdDashboard } from "react-icons/md";
-import { FaTable } from "react-icons/fa6";
-import { FaRegUser } from "react-icons/fa6";
-import { FaGear } from "react-icons/fa6";
-import { FaBagShopping } from "react-icons/fa6";
-import { FaStore } from "react-icons/fa6";
+import { FaTable, FaRegUser, FaBagShopping, FaStore } from "react-icons/fa6";
 import { MdCategory } from "react-icons/md";
 import { FaFileUpload } from "react-icons/fa";
-
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const DashboardSidebar = () => {
+  const pathname = usePathname();
+
+  const menuItems = [
+    { label: "Bảng Điều Khiển", href: "/admin", icon: <MdDashboard className="text-xl" /> },
+    { label: "Quản Lý Đơn Hàng", href: "/admin/orders", icon: <FaBagShopping className="text-xl" /> },
+    { label: "Quản Lý Sản Phẩm", href: "/admin/products", icon: <FaTable className="text-xl" /> },
+    { label: "Nhập Hàng Loạt", href: "/admin/bulk-upload", icon: <FaFileUpload className="text-xl" /> },
+    { label: "Danh Mục Sản Phẩm", href: "/admin/categories", icon: <MdCategory className="text-xl" /> },
+    { label: "Người Dùng", href: "/admin/users", icon: <FaRegUser className="text-xl" /> },
+    { label: "Xưởng / Merchant", href: "/admin/merchant", icon: <FaStore className="text-xl" /> },
+  ];
+
   return (
-    <div className="xl:w-[400px] bg-blue-500 h-full max-xl:w-full">
-      <Link href="/admin">
-        <div className="flex gap-x-2 w-full hover:bg-blue-600 cursor-pointer items-center py-6 pl-5 text-xl text-white">
-          <MdDashboard className="text-2xl" />{" "}
-          <span className="font-normal">Dashboard</span>
-        </div>
-      </Link>
-      <Link href="/admin/orders">
-        <div className="flex gap-x-2 w-full hover:bg-blue-600 cursor-pointer items-center py-6 pl-5 text-xl text-white">
-          <FaBagShopping className="text-2xl" />{" "}
-          <span className="font-normal">Orders</span>
-        </div>
-      </Link>
-      <Link href="/admin/products">
-        <div className="flex gap-x-2 w-full hover:bg-blue-600 cursor-pointer items-center py-6 pl-5 text-xl text-white">
-          <FaTable className="text-2xl" />{" "}
-          <span className="font-normal">Products</span>
-        </div>
-      </Link>
-      <Link href="/admin/bulk-upload">
-        <div className="flex gap-x-2 w-full hover:bg-blue-600 cursor-pointer items-center py-6 pl-5 text-xl text-white">
-          <FaFileUpload className="text-2xl" />{" "}
-          <span className="font-normal">Bulk Upload</span>
-        </div>
-      </Link>
-      <Link href="/admin/categories">
-        <div className="flex gap-x-2 w-full hover:bg-blue-600 cursor-pointer items-center py-6 pl-5 text-xl text-white">
-          <MdCategory className="text-2xl" />{" "}
-          <span className="font-normal">Categories</span>
-        </div>
-      </Link>
-      <Link href="/admin/users">
-        <div className="flex gap-x-2 w-full hover:bg-blue-600 cursor-pointer items-center py-6 pl-5 text-xl text-white">
-          <FaRegUser className="text-2xl" />{" "}
-          <span className="font-normal">Users</span>
-        </div>
-      </Link>
-      <Link href="/admin/merchant">
-        <div className="flex gap-x-2 w-full hover:bg-blue-600 cursor-pointer items-center py-6 pl-5 text-xl text-white">
-          <FaStore className="text-2xl" />{" "}
-          <span className="font-normal">Merchant</span>
-        </div>
-      </Link>
-        <Link href="/admin/settings">
-            <div className="flex gap-x-2 w-full hover:bg-blue-600 cursor-pointer items-center py-6 pl-5 text-xl text-white">
-                <FaGear className="text-2xl" />{" "}
-                <span className="font-normal">Settings</span>
-            </div>
-        </Link>
-    </div>
+    <aside className="w-full xl:w-72 bg-[#1E2229] text-white flex-shrink-0 min-h-screen border-r border-[#2D323C] p-4 flex flex-col gap-y-1">
+      <div className="px-3 py-4 border-b border-[#2D323C] mb-3">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[#E06D53]">
+          Trung Tâm Quản Trị
+        </span>
+        <h2 className="text-lg font-bold text-white mt-0.5">Craft3D Admin</h2>
+      </div>
+
+      <nav className="flex flex-col gap-y-1">
+        {menuItems.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link key={item.href} href={item.href}>
+              <div
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium transition-all ${isActive
+                    ? "bg-[#E06D53] text-white font-bold shadow-sm"
+                    : "text-gray-300 hover:bg-[#2D323C] hover:text-white"
+                  }`}
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </div>
+            </Link>
+          );
+        })}
+      </nav>
+    </aside>
   );
 };
 
