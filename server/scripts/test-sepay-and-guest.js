@@ -80,9 +80,50 @@ async function runTests() {
 
   // Lưu trữ mã đơn test để dọn dẹp sau cùng
   const createdTestOrderCodes = [];
+  const testUserEmails = ["khach.test.cod@craft3d.vn", "khach.test.sepay@craft3d.vn"];
 
   const { createCustomerOrder, lookupCustomerOrder } = require('../controllers/customer_orders');
   const { createCheckoutSession, handleSepayIpn, getPaymentStatus } = require('../controllers/payments');
+
+  // ================================================================================
+  // TEST 0: GUEST CHECKOUT REJECTION (LOGIN REQUIRED BEFORE CHECKOUT)
+  // ================================================================================
+  console.log("--- TEST 0: Guest Checkout Rejection (Login Required) ---");
+  const unauthenticatedReq = {
+    body: {
+      fullName: "Khách Vãng Lai Chưa Đăng Ký",
+      phone: "0988776655",
+      email: "guest.unregistered.attacker@craft3d.vn",
+      province: "Hà Nội",
+      district: "Cầu Giấy",
+      ward: "Dịch Vọng Hậu",
+      addressDetail: "Số 1 Cầu Giấy",
+      paymentMethod: "COD",
+      items: [{ productId: product.id, variantId: variant.id, quantity: 1 }],
+    },
+    headers: { "idempotency-key": `test-guest-reject-${Date.now()}` },
+  };
+  const unauthRes = createMockRes();
+  await createCustomerOrder(unauthenticatedReq, unauthRes);
+  assert(unauthRes.statusCode === 401, `Unregistered guest checkout rejected with HTTP 401 (Got: ${unauthRes.statusCode})`);
+  assert(unauthRes.body?.error === "Authentication required", `Rejection reason is 'Authentication required'`);
+
+  // Ensure test registered users exist in DB for authenticated checkout tests
+  for (const email of testUserEmails) {
+    await prisma.user.upsert({
+      where: { email },
+      update: { name: "Khách", lastname: "Nguyễn Văn", phone: "0912345678", address: "Số 99 Phố Duy Tân" },
+      create: {
+        id: `test-user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        email,
+        name: "Khách",
+        lastname: "Nguyễn Văn",
+        phone: "0912345678",
+        address: "Số 99 Phố Duy Tân",
+        role: "user",
+      },
+    });
+  }
 
   // ================================================================================
   // TEST 1: GUEST CHECKOUT COD
@@ -420,6 +461,12 @@ async function runTests() {
       await prisma.customer_order.delete({ where: { id: ord.id } });
       console.log(`Cleaned up test order: ${code}`);
     }
+  }
+
+  // Xóa các user test tạm thời
+  for (const email of testUserEmails) {
+    await prisma.user.deleteMany({ where: { email } });
+    console.log(`Cleaned up test user: ${email}`);
   }
 
   console.log("\n================================================================================");

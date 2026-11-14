@@ -45,6 +45,38 @@ export const commonValidations = {
       "Password is too common, please choose a stronger password"
     ),
 
+  // Vietnamese Name validation
+  name: z
+    .string()
+    .trim()
+    .min(2, "Tên phải có ít nhất 2 ký tự")
+    .max(50, "Tên không được quá 50 ký tự")
+    .regex(/^[\p{L}\s'-]+$/u, "Tên chỉ được chứa chữ cái tiếng Việt"),
+
+  // Vietnamese Lastname validation
+  lastname: z
+    .string()
+    .trim()
+    .min(2, "Họ và tên đệm phải có ít nhất 2 ký tự")
+    .max(50, "Họ và tên đệm không được quá 50 ký tự")
+    .regex(/^[\p{L}\s'-]+$/u, "Họ và tên đệm chỉ được chứa chữ cái tiếng Việt"),
+
+  // Vietnamese Phone validation
+  phone: z
+    .string()
+    .trim()
+    .min(10, "Số điện thoại phải có ít nhất 10 chữ số")
+    .max(15, "Số điện thoại không hợp lệ")
+    .regex(/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/, "Số điện thoại Việt Nam không hợp lệ (VD: 0912345678)"),
+
+  // Optional address validation
+  address: z
+    .string()
+    .trim()
+    .max(255, "Địa chỉ không được quá 255 ký tự")
+    .optional()
+    .nullable(),
+
   // Request size validation
   validateRequestSize: (contentLength: number | null) => {
     const MAX_REQUEST_SIZE = 1024 * 1024; // 1MB limit

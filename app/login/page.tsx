@@ -1,19 +1,27 @@
 "use client";
 
 import { CustomButton, SectionTitle } from "@/components";
-import { isValidEmailAddressFormat } from "@/lib/utils";
+import { isValidEmailAddressFormat, getSafeReturnUrl } from "@/lib/utils";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import { FcGoogle } from "react-icons/fc";
+import { FaEye, FaEyeSlash } from "react-icons/fa6";
 import Link from "next/link";
 
 const LoginPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { status: sessionStatus } = useSession();
+
+  const returnUrlParam = searchParams.get("returnUrl") || searchParams.get("callbackUrl");
+  const safeReturnUrl = useMemo(() => getSafeReturnUrl(returnUrlParam, "/"), [returnUrlParam]);
 
   useEffect(() => {
     const expired = searchParams.get("expired");
@@ -23,14 +31,13 @@ const LoginPage = () => {
     }
 
     if (sessionStatus === "authenticated") {
-      router.replace("/");
+      router.replace(safeReturnUrl);
     }
-  }, [sessionStatus, router, searchParams]);
+  }, [sessionStatus, router, searchParams, safeReturnUrl]);
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const email = e.target[0].value;
-    const password = e.target[1].value;
+    setError("");
 
     if (!isValidEmailAddressFormat(email)) {
       setError("Địa chỉ email không hợp lệ");
@@ -44,19 +51,28 @@ const LoginPage = () => {
       return;
     }
 
-    const res = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-    });
+    try {
+      setIsSubmitting(true);
+      const res = await signIn("credentials", {
+        redirect: false,
+        email: email.trim().toLowerCase(),
+        password,
+      });
 
-    if (res?.error) {
-      setError("Email hoặc mật khẩu không chính xác");
-      toast.error("Email hoặc mật khẩu không chính xác");
-      if (res?.url) router.replace("/");
-    } else {
-      setError("");
-      toast.success("Đăng nhập thành công!");
+      if (res?.error) {
+        setError("Email hoặc mật khẩu không chính xác");
+        toast.error("Email hoặc mật khẩu không chính xác");
+      } else {
+        setError("");
+        toast.success("Đăng nhập thành công!");
+        router.replace(safeReturnUrl);
+        router.refresh();
+      }
+    } catch (err) {
+      setError("Đã xảy ra lỗi đăng nhập. Vui lòng thử lại.");
+      toast.error("Đã xảy ra lỗi đăng nhập");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -67,6 +83,10 @@ const LoginPage = () => {
       </div>
     );
   }
+
+  const registerLink = safeReturnUrl !== "/"
+    ? `/register?returnUrl=${encodeURIComponent(safeReturnUrl)}`
+    : "/register";
 
   return (
     <div className="bg-[#FAF9F6] min-h-screen pb-16">
@@ -79,7 +99,7 @@ const LoginPage = () => {
               Chào mừng bạn trở lại
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Đăng nhập để theo dõi đơn hàng và lưu sản phẩm yêu thích
+              Đăng nhập để tiếp tục thanh toán và theo dõi đơn hàng của bạn
             </p>
           </div>
 
@@ -97,6 +117,8 @@ const LoginPage = () => {
                 type="email"
                 autoComplete="email"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="VD: email@example.com"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:border-[#E06D53] focus:ring-2 focus:ring-[#E06D53]/20 transition-all"
               />
@@ -114,15 +136,27 @@ const LoginPage = () => {
                   Quên mật khẩu?
                 </a>
               </div>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                placeholder="Nhập mật khẩu (tối thiểu 8 ký tự)"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:border-[#E06D53] focus:ring-2 focus:ring-[#E06D53]/20 transition-all"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu (tối thiểu 8 ký tự)"
+                  className="w-full pr-10 px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:border-[#E06D53] focus:ring-2 focus:ring-[#E06D53]/20 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center">
@@ -149,8 +183,9 @@ const LoginPage = () => {
             <div>
               <CustomButton
                 buttonType="submit"
-                text="Đăng nhập"
+                text={isSubmitting ? "Đang xử lý..." : "Đăng nhập"}
                 customWidth="full"
+                disabled={isSubmitting}
               />
             </div>
           </form>
@@ -171,7 +206,7 @@ const LoginPage = () => {
               <button
                 type="button"
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-2.5 px-4 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-xs"
-                onClick={() => signIn("google")}
+                onClick={() => signIn("google", { callbackUrl: safeReturnUrl })}
               >
                 <FcGoogle className="text-lg" />
                 <span>Google</span>
@@ -181,7 +216,7 @@ const LoginPage = () => {
 
           <div className="mt-8 pt-5 border-t border-gray-100 text-center text-xs text-gray-500">
             Chưa có tài khoản?{" "}
-            <Link href="/register" className="font-bold text-[#E06D53] hover:underline">
+            <Link href={registerLink} className="font-bold text-[#E06D53] hover:underline">
               Đăng ký ngay
             </Link>
           </div>

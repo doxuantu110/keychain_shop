@@ -83,6 +83,26 @@ async function createCustomerOrder(request, response) {
         };
       }
 
+      // Enforce authentication: Orders require a registered customer account (or admin authorization)
+      const hasAdminAuth = await checkIsAdmin(request);
+      let registeredUser = null;
+
+      if (validatedData.email) {
+        registeredUser = await prisma.user.findFirst({
+          where: { email: validatedData.email },
+        });
+      }
+
+      if (!registeredUser && !hasAdminAuth) {
+        return {
+          statusCode: 401,
+          body: {
+            error: "Authentication required",
+            details: "Vui lòng đăng ký hoặc đăng nhập tài khoản trước khi tiến hành đặt hàng.",
+          },
+        };
+      }
+
       // 2. Chống spam nếu không có idempotencyKey (30 giây)
       if (!idempotencyKey) {
         const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
@@ -332,7 +352,7 @@ async function createCustomerOrder(request, response) {
             fromStatus: null,
             toStatus: order.status,
             note: "Đơn hàng được khởi tạo thành công",
-            changedBy: request.body.userId || "CUSTOMER",
+            changedBy: registeredUser?.id || request.body.userId || (hasAdminAuth ? "ADMIN" : "CUSTOMER"),
           },
         });
 

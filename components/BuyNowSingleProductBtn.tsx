@@ -13,12 +13,14 @@ import { useProductStore } from "@/app/_zustand/store";
 import React from "react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 const BuyNowSingleProductBtn = ({
   product,
   quantityCount,
 }: SingleProductBtnProps) => {
   const router = useRouter();
+  const { status: sessionStatus } = useSession();
   const { addToCart, calculateTotals } = useProductStore();
 
   const handleAddToCart = () => {
@@ -34,8 +36,14 @@ const BuyNowSingleProductBtn = ({
       amount: quantityCount,
     });
     calculateTotals();
-    toast.success("Product added to the cart");
-    router.push("/checkout");
+
+    if (sessionStatus !== "authenticated") {
+      toast.success("Đã thêm sản phẩm vào giỏ! Vui lòng đăng nhập để thanh toán.");
+      router.push("/login?returnUrl=/checkout");
+    } else {
+      toast.success("Đã thêm sản phẩm vào giỏ hàng");
+      router.push("/checkout");
+    }
   };
   return (
     <button

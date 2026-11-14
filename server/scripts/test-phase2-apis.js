@@ -85,6 +85,17 @@ function createMockContext(reqOverrides = {}) {
   return { req, res };
 }
 
+// Helper to create mock order context pre-authorized with valid admin/customer auth
+function createMockOrderContext(reqOverrides = {}) {
+  return createMockContext({
+    ...reqOverrides,
+    headers: {
+      "x-admin-key": VALID_ADMIN_KEY,
+      ...(reqOverrides.headers || {})
+    }
+  });
+}
+
 let passedTests = 0;
 let failedTests = 0;
 const testResults = [];
@@ -190,9 +201,9 @@ async function runAuditTests() {
     console.log("--- AUDIT 1: Stock Restoration & Idempotent Cancellation ---");
     {
       // 1. Create an order with 2 items
-      const { req: reqCreate, res: resCreate } = createMockContext({
+      const { req: reqCreate, res: resCreate } = createMockOrderContext({
         body: {
-          fullName: "Audit 1 User",
+          fullName: "Audit One User",
           email: `audit1-${Date.now()}@test.com`,
           phone: "0901111111",
           province: "Hà Nội",
@@ -228,7 +239,7 @@ async function runAuditTests() {
 
       // 4. Concurrent cancellation simulation:
       // Create another order of 4 items
-      const { req: reqCreate2, res: resCreate2 } = createMockContext({
+      const { req: reqCreate2, res: resCreate2 } = createMockOrderContext({
         body: {
           fullName: "Concurrent Cancel User",
           email: `concurrent-${Date.now()}@test.com`,
@@ -271,7 +282,7 @@ async function runAuditTests() {
     {
       // Case A: Enough stock -> stock decremented
       const vStockA = (await prisma.productVariant.findUnique({ where: { id: testVariant.id } })).stock;
-      const { req: reqA, res: resA } = createMockContext({
+      const { req: reqA, res: resA } = createMockOrderContext({
         body: {
           fullName: "Case A User",
           email: `casea-${Date.now()}@test.com`,
@@ -288,7 +299,7 @@ async function runAuditTests() {
 
       // Case B: Not enough stock & allowPreorder = false -> Rejected with 400
       await prisma.productVariant.update({ where: { id: testVariant.id }, data: { stock: 1, allowPreorder: false } });
-      const { req: reqB, res: resB } = createMockContext({
+      const { req: reqB, res: resB } = createMockOrderContext({
         body: {
           fullName: "Case B User",
           email: `caseb-${Date.now()}@test.com`,
@@ -304,7 +315,7 @@ async function runAuditTests() {
 
       // Case C: 0 stock & allowPreorder = true -> Order accepted, stock remains 0 (no negative stock!)
       await prisma.productVariant.update({ where: { id: testVariant.id }, data: { stock: 0, allowPreorder: true } });
-      const { req: reqC, res: resC } = createMockContext({
+      const { req: reqC, res: resC } = createMockOrderContext({
         body: {
           fullName: "Case C User",
           email: `casec-${Date.now()}@test.com`,
@@ -331,7 +342,7 @@ async function runAuditTests() {
 
       // Case D: Partial stock (stock = 1, qty = 3, allowPreorder = true)
       await prisma.productVariant.update({ where: { id: testVariant.id }, data: { stock: 1, allowPreorder: true } });
-      const { req: reqD, res: resD } = createMockContext({
+      const { req: reqD, res: resD } = createMockOrderContext({
         body: {
           fullName: "Case D User",
           email: `cased-${Date.now()}@test.com`,
@@ -357,6 +368,7 @@ async function runAuditTests() {
     {
       // Client sends tampered price: total = 100, price = 1, shippingFee = 0
       const { req: reqTamper, res: resTamper } = createMockContext({
+        headers: { "x-admin-key": VALID_ADMIN_KEY },
         body: {
           fullName: "Tamper Tester",
           email: `tamper-${Date.now()}@test.com`,
@@ -379,6 +391,7 @@ async function runAuditTests() {
 
       // Test Free Shipping policy: Order >= 300,000 VND gets shippingFee = 0
       const { req: reqFreeShip, res: resFreeShip } = createMockContext({
+        headers: { "x-admin-key": VALID_ADMIN_KEY },
         body: {
           fullName: "Free Ship Tester",
           email: `freeship-${Date.now()}@test.com`,
@@ -472,7 +485,7 @@ async function runAuditTests() {
     console.log("\n--- AUDIT 5: Empty Order Rejection & Customization Validation ---");
     {
       // 1. Missing items -> 400
-      const { req: reqNoItems, res: resNoItems } = createMockContext({
+      const { req: reqNoItems, res: resNoItems } = createMockOrderContext({
         body: {
           fullName: "No Items User",
           email: "noitems@test.com",
@@ -483,7 +496,7 @@ async function runAuditTests() {
       assert(resNoItems.getStatusCode() === 400, "Order without items rejected with 400");
 
       // 2. Empty items array -> 400
-      const { req: reqEmptyItems, res: resEmptyItems } = createMockContext({
+      const { req: reqEmptyItems, res: resEmptyItems } = createMockOrderContext({
         body: {
           fullName: "Empty Items User",
           email: "emptyitems@test.com",
@@ -495,7 +508,7 @@ async function runAuditTests() {
       assert(resEmptyItems.getStatusCode() === 400, "Order with items = [] rejected with 400");
 
       // 3. Invalid quantity (0 or negative) -> 400
-      const { req: reqZeroQty, res: resZeroQty } = createMockContext({
+      const { req: reqZeroQty, res: resZeroQty } = createMockOrderContext({
         body: {
           fullName: "Zero Qty User",
           email: "zeroqty@test.com",
@@ -532,7 +545,7 @@ async function runAuditTests() {
         }
       });
 
-      const { req: reqUncust, res: resUncust } = createMockContext({
+      const { req: reqUncust, res: resUncust } = createMockOrderContext({
         body: {
           fullName: "Uncust User",
           email: "uncust@test.com",
@@ -545,7 +558,7 @@ async function runAuditTests() {
 
       // 5. Custom text exceeds max length
       await prisma.product.update({ where: { id: uncustomizableProduct.id }, data: { isCustomizable: true, maxCustomTextLength: 5 } });
-      const { req: reqTooLong, res: resTooLong } = createMockContext({
+      const { req: reqTooLong, res: resTooLong } = createMockOrderContext({
         body: {
           fullName: "Too Long User",
           email: "toolong@test.com",
@@ -567,14 +580,15 @@ async function runAuditTests() {
     console.log("\n--- AUDIT 6: Idempotency Key & Concurrent Checkout ---");
     {
       const idemKey = `idem-test-${Date.now()}`;
+      const idemEmail = `idem-${Date.now()}@test.com`;
       trackIdempotencyKey(idemKey);
 
       // 1. First checkout with key
-      const { req: reqIdem1, res: resIdem1 } = createMockContext({
+      const { req: reqIdem1, res: resIdem1 } = createMockOrderContext({
         headers: { "idempotency-key": idemKey },
         body: {
           fullName: "Idempotent User",
-          email: `idem-${Date.now()}@test.com`,
+          email: idemEmail,
           phone: "0909999999",
           province: "Hà Nội",
           items: [{ productId: testProduct.id, variantId: testVariant.id, quantity: 1 }]
@@ -586,11 +600,11 @@ async function runAuditTests() {
       const idemOrder1 = resIdem1.getBody();
 
       // 2. Sequential second checkout with SAME key -> returns cached 200/201 with header X-Idempotent-Replay
-      const { req: reqIdem2, res: resIdem2 } = createMockContext({
+      const { req: reqIdem2, res: resIdem2 } = createMockOrderContext({
         headers: { "idempotency-key": idemKey },
         body: {
           fullName: "Idempotent User",
-          email: `idem-${Date.now()}@test.com`,
+          email: idemEmail,
           phone: "0909999999",
           province: "Hà Nội",
           items: [{ productId: testProduct.id, variantId: testVariant.id, quantity: 1 }]
@@ -606,7 +620,7 @@ async function runAuditTests() {
       const stockBeforeConcur = (await prisma.productVariant.findUnique({ where: { id: testVariant.id } })).stock;
 
       const { req: cReqA, res: cResA } = createMockContext({
-        headers: { "idempotency-key": concurrentKey },
+        headers: { "idempotency-key": concurrentKey, "x-admin-key": VALID_ADMIN_KEY },
         body: {
           fullName: "Concurrent User",
           email: `concur-${Date.now()}@test.com`,
@@ -616,7 +630,7 @@ async function runAuditTests() {
         }
       });
       const { req: cReqB, res: cResB } = createMockContext({
-        headers: { "idempotency-key": concurrentKey },
+        headers: { "idempotency-key": concurrentKey, "x-admin-key": VALID_ADMIN_KEY },
         body: {
           fullName: "Concurrent User",
           email: `concur-${Date.now()}@test.com`,
@@ -655,6 +669,7 @@ async function runAuditTests() {
       const stockBeforeRollback = (await prisma.productVariant.findUnique({ where: { id: testVariant.id } })).stock;
       // We will attempt an order where one item has valid stock but next item causes failure
       const { req: reqRollback, res: resRollback } = createMockContext({
+        headers: { "x-admin-key": VALID_ADMIN_KEY },
         body: {
           fullName: "Rollback User",
           email: "rollback@test.com",
@@ -700,10 +715,10 @@ async function runAuditTests() {
       const mismatchKey = `mismatch-key-${Date.now()}`;
       trackIdempotencyKey(mismatchKey);
       // First request with payload A
-      const { req: reqA, res: resA } = createMockContext({
+      const { req: reqA, res: resA } = createMockOrderContext({
         headers: { "idempotency-key": mismatchKey },
         body: {
-          fullName: "User A",
+          fullName: "User Alpha",
           email: `usera-${Date.now()}@test.com`,
           phone: "0901112233",
           province: "Hà Nội",
@@ -715,10 +730,10 @@ async function runAuditTests() {
       trackOrderId(resA);
 
       // Second request with SAME key but DIFFERENT payload (different items/buyer)
-      const { req: reqB, res: resB } = createMockContext({
+      const { req: reqB, res: resB } = createMockOrderContext({
         headers: { "idempotency-key": mismatchKey },
         body: {
-          fullName: "User B (Tampered)",
+          fullName: "User Beta",
           email: `userb-${Date.now()}@test.com`,
           phone: "0909998877",
           province: "TP HCM",
@@ -794,7 +809,7 @@ async function runAuditTests() {
     console.log("\n--- PHASE 3.6 AUDIT 4: State Machine Lifecycle Verification ---");
     {
       // 1. Create a fresh order for lifecycle transitions
-      const { req: reqLifecycleCreate, res: resLifecycleCreate } = createMockContext({
+      const { req: reqLifecycleCreate, res: resLifecycleCreate } = createMockOrderContext({
         body: {
           fullName: "Lifecycle User",
           email: `lifecycle-${Date.now()}@test.com`,
@@ -868,7 +883,7 @@ async function runAuditTests() {
     console.log("\n--- PHASE 3.6 AUDIT 7: QR URL Validation & Security ---");
     {
       // 1. Valid HTTP/HTTPS QR URL
-      const { req: reqValidQr, res: resValidQr } = createMockContext({
+      const { req: reqValidQr, res: resValidQr } = createMockOrderContext({
         body: {
           fullName: "QR User Valid",
           email: `qrvalid-${Date.now()}@test.com`,
@@ -887,7 +902,7 @@ async function runAuditTests() {
       trackOrderId(resValidQr);
 
       // 2. Malicious javascript: URL (XSS/SSRF attempt) -> Rejected with 400
-      const { req: reqXssQr, res: resXssQr } = createMockContext({
+      const { req: reqXssQr, res: resXssQr } = createMockOrderContext({
         body: {
           fullName: "QR User XSS",
           email: "qrxss@test.com",
@@ -905,7 +920,7 @@ async function runAuditTests() {
       assert(resXssQr.getStatusCode() === 400, "Malicious javascript: customQrUrl rejected with 400");
 
       // 3. Malformed URL string -> Rejected with 400
-      const { req: reqBadQr, res: resBadQr } = createMockContext({
+      const { req: reqBadQr, res: resBadQr } = createMockOrderContext({
         body: {
           fullName: "QR User Bad",
           email: "qrbad@test.com",
@@ -927,7 +942,7 @@ async function runAuditTests() {
     {
       const dbIdemKey = `db-idem-${Date.now()}`;
       trackIdempotencyKey(dbIdemKey);
-      const { req: reqDbIdem, res: resDbIdem } = createMockContext({
+      const { req: reqDbIdem, res: resDbIdem } = createMockOrderContext({
         headers: { "idempotency-key": dbIdemKey },
         body: {
           fullName: "DB Idem User",

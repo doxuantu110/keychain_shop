@@ -26,10 +26,18 @@ export const authOptions: any = {
               user.password
             );
             if (isPasswordCorrect) {
+              const displayName = user.name
+                ? (user.lastname ? `${user.lastname} ${user.name}`.trim() : user.name)
+                : (user.lastname || user.email.split("@")[0]);
+
               return {
                 id: user.id,
                 email: user.email,
                 role: user.role,
+                name: displayName,
+                lastname: user.lastname || null,
+                phone: user.phone || null,
+                address: user.address || null,
               };
             }
           }
@@ -82,6 +90,10 @@ export const authOptions: any = {
       if (user) {
         token.role = user.role;
         token.id = user.id;
+        token.name = user.name;
+        token.lastname = user.lastname;
+        token.phone = user.phone;
+        token.address = user.address;
         token.iat = Math.floor(Date.now() / 1000); // Issued at time
       }
 
@@ -101,6 +113,10 @@ export const authOptions: any = {
       if (token && session?.user) {
         session.user.role = token.role as string;
         session.user.id = token.id as string;
+        session.user.name = token.name as string;
+        session.user.lastname = token.lastname as string;
+        session.user.phone = token.phone as string;
+        session.user.address = token.address as string;
       }
       return session;
     },

@@ -4,13 +4,26 @@ import { useProductStore } from "@/app/_zustand/store";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { FaCheck, FaClock, FaXmark, FaWandMagicSparkles, FaQrcode, FaArrowRight, FaBagShopping } from "react-icons/fa6";
 import QuantityInputCart from "@/components/QuantityInputCart";
 import { sanitize } from "@/lib/sanitize";
 import { formatVND } from "@/types/cart";
 
 export const CartModule = () => {
+  const router = useRouter();
+  const { status: sessionStatus } = useSession();
   const { products, removeFromCart, total, allQuantity } = useProductStore();
+
+  const handleProceedToCheckout = () => {
+    if (sessionStatus !== "authenticated") {
+      toast.success("Vui lòng đăng nhập để tiến hành đặt hàng");
+      router.push("/login?returnUrl=/checkout");
+    } else {
+      router.push("/checkout");
+    }
+  };
 
   const handleRemoveItem = (cartItemIdOrId: string, title: string) => {
     removeFromCart(cartItemIdOrId);
@@ -195,12 +208,13 @@ export const CartModule = () => {
           </div>
 
           <div className="mt-6">
-            <Link
-              href="/checkout"
-              className="w-full flex justify-center items-center py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-[#E06D53] text-white hover:bg-[#C85A42] shadow-sm transition-all tracking-wide"
+            <button
+              type="button"
+              onClick={handleProceedToCheckout}
+              className="w-full flex justify-center items-center py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm bg-[#E06D53] text-white hover:bg-[#C85A42] shadow-sm transition-all tracking-wide cursor-pointer"
             >
-              Tiến hành đặt hàng (COD)
-            </Link>
+              Tiến hành đặt hàng
+            </button>
           </div>
 
           <div className="mt-4 text-center">

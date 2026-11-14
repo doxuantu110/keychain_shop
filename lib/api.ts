@@ -28,15 +28,21 @@ export const apiClient = {
       url = `${this.baseUrl}${endpoint}`;
     }
 
-    const defaultOptions: RequestInit = {
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+    const defaultHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
     };
 
-    return fetch(url, { ...defaultOptions, ...options });
+    const customHeaders = (options.headers as Record<string, string>) || {};
+    const mergedHeaders = {
+      ...defaultHeaders,
+      ...customHeaders,
+    };
+
+    return fetch(url, {
+      credentials: 'same-origin',
+      ...options,
+      headers: mergedHeaders,
+    });
   },
 
   // Convenience methods

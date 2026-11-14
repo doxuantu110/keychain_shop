@@ -13,7 +13,7 @@ import Link from "next/link";
 import { sanitize } from "@/lib/sanitize";
 
 export default function CheckoutPage() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
   const { products, total, clearCart } = useProductStore();
 
@@ -32,6 +32,14 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "SEPAY">("COD");
+
+  // Authentication route guard: Visitors must be logged in to access checkout
+  useEffect(() => {
+    if (sessionStatus === "unauthenticated") {
+      toast.error("Vui lòng đăng nhập để tiến hành thanh toán");
+      router.replace("/login?returnUrl=/checkout");
+    }
+  }, [sessionStatus, router]);
 
   // Hàm submit form ẩn sang SePay Gateway
   const submitSepayForm = (actionUrl: string, fields: Record<string, string | number>) => {
@@ -63,13 +71,21 @@ export default function CheckoutPage() {
     }
   }, []);
 
-  // Tự động điền email nếu người dùng đã đăng nhập
+  // Tự động điền thông tin khách hàng từ phiên đăng nhập
   useEffect(() => {
-    if (session?.user?.email && !form.email) {
+    if (session?.user) {
+      const u = session.user as {
+        name?: string | null;
+        email?: string | null;
+        phone?: string | null;
+        address?: string | null;
+      };
       setForm((prev) => ({
         ...prev,
-        email: session.user?.email || "",
-        fullName: session.user?.name || prev.fullName,
+        email: u.email || prev.email,
+        fullName: u.name || prev.fullName,
+        phone: u.phone || prev.phone,
+        addressDetail: u.address || prev.addressDetail,
       }));
     }
   }, [session]);
@@ -136,8 +152,15 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
+      // Tách fullName thành name và lastname rõ ràng
+      const nameParts = form.fullName.trim().split(/\s+/);
+      const firstName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : nameParts[0];
+      const lastName = nameParts.length > 1 ? nameParts.slice(0, -1).join(" ") : nameParts[0];
+
       // Chuẩn bị payload chuẩn theo API Contract
       const orderPayload = {
+        name: firstName,
+        lastname: lastName,
         fullName: form.fullName.trim(),
         phone: form.phone.trim(),
         email: form.email.trim().toLowerCase(),
@@ -149,11 +172,11 @@ export default function CheckoutPage() {
         paymentMethod: paymentMethod,
         items: products.map((item) => ({
           productId: item.productId,
-          variantId: item.variantId !== "default" ? item.variantId : undefined,
+          variantId: item.variantId && item.variantId !== "default" ? item.variantId : null,
           quantity: item.amount,
-          customText: item.customText || undefined,
-          customFont: item.customFont || undefined,
-          customQrUrl: item.customQrUrl || undefined,
+          customText: item.customText || null,
+          customFont: item.customFont || null,
+          customQrUrl: item.customQrUrl || null,
         })),
       };
 
@@ -200,6 +223,15 @@ export default function CheckoutPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (sessionStatus === "loading" || sessionStatus === "unauthenticated") {
+    return (
+      <div className="bg-[#FAF9F6] min-h-[60vh] flex flex-col items-center justify-center py-16 px-4 gap-3">
+        <div className="w-10 h-10 border-4 border-[#E06D53] border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs text-gray-500 font-medium">Đang kiểm tra thông tin đăng nhập...</p>
+      </div>
+    );
+  }
 
   if (products.length === 0) {
     return (
@@ -257,9 +289,8 @@ export default function CheckoutPage() {
                   value={form.fullName}
                   onChange={(e) => handleInputChange("fullName", e.target.value)}
                   placeholder="VD: Nguyễn Văn An"
-                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm bg-white focus:outline-none focus:ring-2 ${
-                    errors.fullName ? "border-rose-400 focus:ring-rose-400/20" : "border-gray-200 focus:border-[#E06D53] focus:ring-[#E06D53]/20"
-                  }`}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm bg-white focus:outline-none focus:ring-2 ${errors.fullName ? "border-rose-400 focus:ring-rose-400/20" : "border-gray-200 focus:border-[#E06D53] focus:ring-[#E06D53]/20"
+                    }`}
                 />
                 {errors.fullName && <p className="text-xs text-rose-500 mt-1">{errors.fullName}</p>}
               </div>
@@ -273,9 +304,8 @@ export default function CheckoutPage() {
                   value={form.phone}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
                   placeholder="VD: 0987654321"
-                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm bg-white focus:outline-none focus:ring-2 ${
-                    errors.phone ? "border-rose-400 focus:ring-rose-400/20" : "border-gray-200 focus:border-[#E06D53] focus:ring-[#E06D53]/20"
-                  }`}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm bg-white focus:outline-none focus:ring-2 ${errors.phone ? "border-rose-400 focus:ring-rose-400/20" : "border-gray-200 focus:border-[#E06D53] focus:ring-[#E06D53]/20"
+                    }`}
                 />
                 {errors.phone && <p className="text-xs text-rose-500 mt-1">{errors.phone}</p>}
               </div>
@@ -291,9 +321,8 @@ export default function CheckoutPage() {
                 value={form.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
                 placeholder="VD: an.nguyen@example.com"
-                className={`w-full px-3.5 py-2.5 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 ${
-                  errors.email ? "border-rose-400 focus:ring-rose-400" : "border-gray-300 focus:ring-blue-500"
-                }`}
+                className={`w-full px-3.5 py-2.5 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 ${errors.email ? "border-rose-400 focus:ring-rose-400" : "border-gray-300 focus:ring-blue-500"
+                  }`}
               />
               {errors.email && <p className="text-xs text-rose-500 mt-1">{errors.email}</p>}
             </div>
@@ -346,9 +375,8 @@ export default function CheckoutPage() {
                 value={form.addressDetail}
                 onChange={(e) => handleInputChange("addressDetail", e.target.value)}
                 placeholder="VD: Số 123 Đường Cầu Giấy, Tòa nhà ABC..."
-                className={`w-full px-3.5 py-2.5 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 ${
-                  errors.addressDetail ? "border-rose-400 focus:ring-rose-400" : "border-gray-300 focus:ring-blue-500"
-                }`}
+                className={`w-full px-3.5 py-2.5 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 ${errors.addressDetail ? "border-rose-400 focus:ring-rose-400" : "border-gray-300 focus:ring-blue-500"
+                  }`}
               />
               {errors.addressDetail && <p className="text-xs text-rose-500 mt-1">{errors.addressDetail}</p>}
             </div>
@@ -374,17 +402,15 @@ export default function CheckoutPage() {
                 {/* Lựa chọn 1: COD */}
                 <div
                   onClick={() => setPaymentMethod("COD")}
-                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
-                    paymentMethod === "COD"
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${paymentMethod === "COD"
                       ? "border-[#E06D53] bg-[#FDF2EE]/60 shadow-sm"
                       : "border-gray-200 hover:border-gray-300 bg-white"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                        paymentMethod === "COD" ? "border-[#E06D53] bg-[#E06D53]" : "border-gray-300 bg-white"
-                      }`}
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${paymentMethod === "COD" ? "border-[#E06D53] bg-[#E06D53]" : "border-gray-300 bg-white"
+                        }`}
                     >
                       {paymentMethod === "COD" && <div className="w-2 h-2 rounded-full bg-white" />}
                     </div>
@@ -406,17 +432,15 @@ export default function CheckoutPage() {
                 {/* Lựa chọn 2: VietQR qua Cổng SePay */}
                 <div
                   onClick={() => setPaymentMethod("SEPAY")}
-                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
-                    paymentMethod === "SEPAY"
+                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${paymentMethod === "SEPAY"
                       ? "border-blue-600 bg-blue-50/60 shadow-sm"
                       : "border-gray-200 hover:border-gray-300 bg-white"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                        paymentMethod === "SEPAY" ? "border-blue-600 bg-blue-600" : "border-gray-300 bg-white"
-                      }`}
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${paymentMethod === "SEPAY" ? "border-blue-600 bg-blue-600" : "border-gray-300 bg-white"
+                        }`}
                     >
                       {paymentMethod === "SEPAY" && <div className="w-2 h-2 rounded-full bg-white" />}
                     </div>
@@ -520,11 +544,10 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`w-full mt-6 py-4 px-4 rounded-2xl font-bold text-sm text-white shadow-md transition-all uppercase tracking-wide flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer ${
-                  paymentMethod === "SEPAY"
+                className={`w-full mt-6 py-4 px-4 rounded-2xl font-bold text-sm text-white shadow-md transition-all uppercase tracking-wide flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer ${paymentMethod === "SEPAY"
                     ? "bg-blue-600 hover:bg-blue-700"
                     : "bg-[#E06D53] hover:bg-[#C85A42]"
-                }`}
+                  }`}
               >
                 {isSubmitting ? (
                   <>

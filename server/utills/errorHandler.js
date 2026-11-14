@@ -138,10 +138,10 @@ const handleServerError = (error, res, context = "") => {
 // Async wrapper for server functions
 const asyncHandler = (fn) => {
   return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch((error) => {
+    return Promise.resolve(fn(req, res, next)).catch((error) => {
       console.error("🔥 Async Handler Error:", error);
       console.error("Stack:", error.stack);
-      handleServerError(error, res, `${req.method} ${req.path}`);
+      handleServerError(error, res, `${req ? req.method : ""} ${req ? req.path : ""}`);
     });
   };
 };

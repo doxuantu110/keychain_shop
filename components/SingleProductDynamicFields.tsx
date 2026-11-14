@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useProductStore } from "@/app/_zustand/store";
 import toast from "react-hot-toast";
 import { Product, ProductVariant } from "@/types/product";
@@ -22,6 +23,7 @@ interface Props {
 
 const SingleProductDynamicFields: React.FC<Props> = ({ product }) => {
   const router = useRouter();
+  const { status: sessionStatus } = useSession();
   const { addToCart, calculateTotals } = useProductStore();
 
   const activeVariants = useMemo(() => {
@@ -101,7 +103,12 @@ const SingleProductDynamicFields: React.FC<Props> = ({ product }) => {
     calculateTotals();
 
     if (isBuyNow) {
-      router.push("/checkout");
+      if (sessionStatus !== "authenticated") {
+        toast.success("Đã thêm vào giỏ! Vui lòng đăng nhập để tiến hành thanh toán.");
+        router.push("/login?returnUrl=/checkout");
+      } else {
+        router.push("/checkout");
+      }
     } else {
       toast.success("Đã thêm sản phẩm vào giỏ hàng!");
     }
@@ -160,11 +167,10 @@ const SingleProductDynamicFields: React.FC<Props> = ({ product }) => {
                     setSelectedVariant(variant);
                     setQuantityCount(1);
                   }}
-                  className={`relative flex flex-col p-3 rounded-xl border text-left transition-all ${
-                    isSelected
+                  className={`relative flex flex-col p-3 rounded-xl border text-left transition-all ${isSelected
                       ? "border-[#E06D53] bg-[#FDF2EE] ring-2 ring-[#E06D53]/40 shadow-sm"
                       : "border-gray-200 hover:border-gray-300 bg-white"
-                  } ${isVarOutOfStock ? "opacity-60 bg-gray-50" : ""}`}
+                    } ${isVarOutOfStock ? "opacity-60 bg-gray-50" : ""}`}
                 >
                   <span className="font-bold text-sm text-[#1E2229]">
                     {variant.sizeLabel}
@@ -176,8 +182,8 @@ const SingleProductDynamicFields: React.FC<Props> = ({ product }) => {
                     {variant.allowPreorder && variant.stock <= 0
                       ? "Đặt trước"
                       : variant.stock > 0
-                      ? `Còn ${variant.stock}`
-                      : "Hết hàng"}
+                        ? `Còn ${variant.stock}`
+                        : "Hết hàng"}
                   </span>
                 </button>
               );
@@ -213,11 +219,10 @@ const SingleProductDynamicFields: React.FC<Props> = ({ product }) => {
               onChange={(e) => setCustomText(e.target.value)}
               placeholder="VD: HUY & LAN, ANH TUẤN..."
               maxLength={maxLen + 5}
-              className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 transition-all ${
-                isTextTooLong
+              className={`w-full px-3.5 py-2.5 text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 transition-all ${isTextTooLong
                   ? "border-rose-500 focus:ring-rose-500/20"
                   : "border-gray-200 focus:border-[#E06D53] focus:ring-[#E06D53]/20"
-              }`}
+                }`}
             />
             {isTextTooLong && (
               <p className="text-xs text-rose-600 mt-1">

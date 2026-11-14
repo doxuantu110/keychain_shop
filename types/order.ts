@@ -17,6 +17,8 @@ export interface OrderItemInput {
 }
 
 export interface CreateOrderInput {
+  name?: string;
+  lastname?: string;
   fullName: string;
   phone: string;
   email: string;

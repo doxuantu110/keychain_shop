@@ -192,3 +192,46 @@ export const isValidCreditCardCVVOrCVC = (input: string) => {
   const regex = /^[0-9]{3,4}$/;
   return regex.test(input);
 };
+
+/**
+ * Validate and sanitize return URLs to strictly prevent Open Redirect attacks.
+ * Rules:
+ * - Must start with a single '/'
+ * - Must NOT start with '//' (protocol-relative) or '/\'
+ * - Must NOT contain backslashes
+ * - Must NOT contain URI scheme indicators (e.g. javascript:, http:, https:)
+ * - Must NOT contain control characters
+ */
+export const getSafeReturnUrl = (rawUrl?: string | null, fallback: string = "/"): string => {
+  if (!rawUrl || typeof rawUrl !== "string") {
+    return fallback;
+  }
+  const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.startsWith("/\\")) {
+    return fallback;
+  }
+  if (trimmed.includes("\\")) {
+    return fallback;
+  }
+  if (/[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+    return fallback;
+  }
+  if (/[\x00-\x1F\x7F]/.test(trimmed)) {
+    return fallback;
+  }
+  return trimmed;
+};
+
+/**
+ * Validate Vietnamese mobile phone number format
+ * Accepts: 10-digit formats starting with 03, 05, 07, 08, 09 or +84...
+ */
+export const isValidVietnamesePhone = (phone: string): boolean => {
+  if (!phone || typeof phone !== "string") return false;
+  const cleaned = phone.replace(/[\s.-]/g, "");
+  return /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/.test(cleaned);
+};
+

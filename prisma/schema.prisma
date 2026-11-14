@@ -253,6 +253,10 @@ model User {
   email             String              @unique
   password          String?
   role              String?             @default("user")
+  name              String?             // Tên / First name
+  lastname          String?             // Họ đệm / Last name
+  phone             String?             // Số điện thoại liên hệ
+  address           String?             // Địa chỉ giao hàng mặc định
   Wishlist          Wishlist[]
   notifications     Notification[]
   bulkUploadBatches bulk_upload_batch[] @relation("UserBatches")
